@@ -1,5 +1,5 @@
 #include <iostream>
-#include "execmem.h"
+#include "memexec.h"
 
 int main()
 {
@@ -9,7 +9,7 @@ int main()
         0xC3                          // ret
     };
 
-    execmem::rcg return_num;
+    memexec::rcg return_num;
 
     if (return_num.register_function(code) && return_num)
     {

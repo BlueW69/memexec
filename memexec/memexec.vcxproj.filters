@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\execmem.h">
+    <ClInclude Include="src\memexec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

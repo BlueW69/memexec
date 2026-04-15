@@ -11,7 +11,7 @@
 
 #pragma comment(lib, "oleaut32.lib")
 
-namespace execmem
+namespace memexec
 {
     class rcg
     {
