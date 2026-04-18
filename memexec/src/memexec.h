@@ -14,11 +14,11 @@
 
 namespace memexec
 {
-    enum class types : std::uint8_t
+    enum class type : std::uint8_t
     {
         // ------------------------- Special Cases ------------------------- //
 
-        none = 0,         // VT_EMPTY        (void)
+        empty = 0,         // VT_EMPTY        (void)
         void_ptr,         // byref           (PVOID)
         boolean,          // boolVal         (VARIANT_BOOL)    
 
@@ -46,7 +46,58 @@ namespace memexec
 
     struct value
     {
+    private:
 
+        type t = type::empty;
+
+    public:
+
+        union
+        {
+            void* void_ptr;
+            bool  boolean;
+
+            std::int8_t  i8;
+            std::int16_t i16;
+            std::int32_t i32;
+            std::int64_t i64;
+
+            std::uint8_t  u8;
+            std::uint16_t u16;
+            std::uint32_t u32;
+            std::uint64_t u64;
+           
+            float  f32;
+            double f64;
+        };
+
+        value()                  : t(type::empty), void_ptr(nullptr) {}
+
+        value(void* val)         : t(type::void_ptr), void_ptr(val) {}
+        value(bool  val)         : t(type::boolean),  boolean(val) {}
+
+        value(std::int8_t  val)  : t(type::i8),  i8(val)  {}
+        value(std::int16_t val)  : t(type::i16), i16(val) {}
+        value(std::int32_t val)  : t(type::i32), i32(val) {}
+        value(std::int64_t val)  : t(type::i64), i64(val) {}
+        
+        value(std::uint8_t  val) : t(type::u8),  u8(val)  {}
+        value(std::uint16_t val) : t(type::u16), u16(val) {}
+        value(std::uint32_t val) : t(type::u32), u32(val) {}
+        value(std::uint64_t val) : t(type::u64), u64(val) {}
+
+        value(float  val)        : t(type::f32), f32(val) {}
+        value(double val)        : t(type::f64), f64(val) {}
+
+        value(const value&) = default;
+        value& operator=(const value&) = default;
+
+        value(value&&) = default;
+        value& operator=(value&&) = default;
+
+        ~value() = default;
+
+        bool is_void() const noexcept { return t == type::empty; }
     };
 
     class rcg
@@ -68,12 +119,10 @@ namespace memexec
 
     public:
 
-        
-
         struct function_structure
         {
-            types return_type { };
-            std::vector<types> argument_types { };
+            type return_type { };
+            std::vector<type> argument_types { };
             std::vector<VARIANTARG*> argument_values { };
         };
 
