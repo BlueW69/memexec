@@ -148,9 +148,112 @@ namespace memexec
             return v_b != VARIANT_FALSE;
         }
 
-        static VARIANT convert(value v) 
+        static VARIANT_BOOL convert(bool b)
         {
-            // Implement
+            (b) ? VARIANT_TRUE : VARIANT_FALSE ;
+        }
+
+        static VARIANT convert(value v) noexcept 
+        {
+            VARIANT var;
+            VariantInit(&var);
+
+            switch (v.t)
+            {
+#ifdef _WIN64
+                case type::void_ptr:   
+                {
+                    var.vt = VT_UINT_PTR;
+                    var.ullVal = reinterpret_cast<ULONGLONG>(v.void_ptr);
+                }                    
+                break;
+#else
+                case type::void_ptr:
+                {
+                    var.vt = VT_UINT_PTR;
+                    var.ulVal = reinterpret_cast<ULONG>(v.void_ptr);
+                }
+                break;
+#endif
+                case type::boolean:
+                {
+                    var.vt = VT_BOOL;
+                    var.boolVal = convert(v.boolean);
+                }
+                break;
+
+                case type::i8:
+                {
+                    var.vt = VT_I1;
+                    var.cVal = static_cast<CHAR>(v.i8);
+                }
+                break;
+
+                case type::i16:
+                {
+                    var.vt = VT_I2;
+                    var.iVal = static_cast<SHORT>(v.i16);
+                }
+                break;
+
+                case type::i32:
+                {
+                    var.vt = VT_I4;
+                    var.lVal = static_cast<LONG>(v.i32);
+                }
+                break;
+
+                case type::i64:
+                {
+                    var.vt = VT_I8;
+                    var.llVal = static_cast<LONGLONG>(v.i64);
+                }
+                break;
+
+                case type::u8: 
+                {
+                    var.vt = VT_UI1;
+                    var.bVal = static_cast<BYTE>(v.u8);
+                }
+                break;
+
+                case type::u16:
+                {
+                    var.vt = VT_UI2;
+                    var.uiVal = static_cast<USHORT>(v.u16);
+                }
+                break;
+
+                case type::u32:
+                {
+                    var.vt = VT_UI4;
+                    var.ulVal = static_cast<ULONG>(v.u32);
+                }
+                break;
+
+                case type::u64:
+                {
+                    var.vt = VT_UI8;
+                    var.ullVal = static_cast<ULONGLONG>(v.u64);
+                }
+                break;
+
+                case type::f32:
+                {
+                    var.vt = VT_R4;
+                    var.fltVal = static_cast<FLOAT>(v.f32);
+                }
+                break;
+
+                case type::f64:
+                {
+                    var.vt = VT_R8;
+                    var.dblVal = static_cast<DOUBLE>(v.f64);
+                }
+                break;
+            }
+
+            return var;
         }
 
         static value convert(VARIANT v)
