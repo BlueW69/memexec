@@ -18,39 +18,37 @@ namespace memexec
     {
         // ------------------------- Special Cases ------------------------- //
 
-        empty = 0,        //                           (void)
-        void_ptr,         // ullVal | ulVal            (uintptr_t*),
-        boolean,          // boolVal                   (short)
+        empty = 0,        //                         (void)
+        void_ptr,         // ullVal | ulVal          (uintptr_t*),
+        boolean,          // boolVal                 (short)
 
         // ------------------------ Signed Integers ------------------------ //
 
-        i8,               // cVal                      (char)
-        i16,              // iVal                      (short)
-        i32,              // lVal                      (long)
-        i64,              // llVal                     (long long)
+        i8,               // cVal                    (char)
+        i16,              // iVal                    (short)
+        i32,              // lVal | intVal           (long) | (int)
+        i64,              // llVal                   (long long)
 
         // ----------------------- Unsigned Integers ----------------------- //
 
-        u8,               // bVal                      (byte)
-        u16,              // uiVal                     (unsigned short)
-        u32,              // ulVal                     (unsigned long)
-        u64,              // ullVal                    (unsigned long long)
+        u8,               // bVal                    (byte)
+        u16,              // uiVal                   (unsigned short)
+        u32,              // ulVal | uintVal         (unsigned long | int)
+        u64,              // ullVal                  (unsigned long long)
 
         // ------------------------ Floating Points ------------------------ // 
 
-        f32,              // fltVal                    (float)
-        f64               // dblVal                    (double)
+        f32,              // fltVal                  (float)
+        f64               // dblVal                  (double)
 
         // ----------------------------------------------------------------- //
     };
  
     struct value
     {
-    private:
-
-        type t = type::empty;
-
     public:
+        
+         type t;
 
         union
         {
@@ -71,43 +69,33 @@ namespace memexec
             double f64;
         };
 
-        value() : t(type::empty), void_ptr(nullptr) {}
+        value() noexcept : t(type::empty), void_ptr(nullptr) {}
 
-        value(void* val) : t(type::void_ptr), void_ptr(val) {}
-        value(bool  val) : t(type::boolean), boolean(val) {}
+        value(void* val) noexcept : t(type::void_ptr), void_ptr(val) {}
+        value(bool val) noexcept : t(type::boolean), boolean(val) {}
 
-        value(std::int8_t  val) : t(type::i8), i8(val) {}
-        value(std::int16_t val) : t(type::i16), i16(val) {}
-        value(std::int32_t val) : t(type::i32), i32(val) {}
-        value(std::int64_t val) : t(type::i64), i64(val) {}
+        value(std::int8_t val) noexcept : t(type::i8), i8(val) {}
+        value(std::int16_t val) noexcept : t(type::i16), i16(val) {}
+        value(std::int32_t val) noexcept : t(type::i32), i32(val) {}
+        value(std::int64_t val) noexcept : t(type::i64), i64(val) {}
 
-        value(std::uint8_t  val) : t(type::u8), u8(val) {}
-        value(std::uint16_t val) : t(type::u16), u16(val) {}
-        value(std::uint32_t val) : t(type::u32), u32(val) {}
-        value(std::uint64_t val) : t(type::u64), u64(val) {}
+        value(std::uint8_t val) noexcept : t(type::u8), u8(val) {}
+        value(std::uint16_t val) noexcept : t(type::u16), u16(val) {}
+        value(std::uint32_t val) noexcept : t(type::u32), u32(val) {}
+        value(std::uint64_t val) noexcept : t(type::u64), u64(val) {}
 
-        value(float  val) : t(type::f32), f32(val) {}
-        value(double val) : t(type::f64), f64(val) {}
+        value(float  val) noexcept : t(type::f32), f32(val) {}
+        value(double val) noexcept : t(type::f64), f64(val) {}
 
-        value(const value&) = default;
-        value& operator=(const value&) = default;
+        value(const value&) noexcept = default;
+        value& operator=(const value&) noexcept = default;
 
-        value(value&&) = default;
-        value& operator=(value&&) = default;
+        value(value&&) noexcept = default;
+        value& operator=(value&&) noexcept = default;
 
         ~value() = default;
-
-        bool is_void() const noexcept { return t == type::empty; }
-    };
-
-    class rcg
-    {
-    private:
         
-        void* mem_ = nullptr;
-        std::size_t size_ = 0;
-        
-        static VARTYPE convert(type t = type::empty)
+        static VARTYPE convert(type t = type::empty) noexcept
         {
             switch (t)
             {
@@ -124,6 +112,8 @@ namespace memexec
                 case type::u64:      return VT_UI8;
                 case type::f32:      return VT_R4;
                 case type::f64:      return VT_R8;
+
+                default:             return VT_EMPTY;
             }
         }
 
@@ -139,10 +129,12 @@ namespace memexec
                 case VT_I1:       return type::i8;
                 case VT_I2:       return type::i16;
                 case VT_I4:       return type::i32;
+                case VT_INT:      return type::i32;
                 case VT_I8:       return type::i64;
                 case VT_UI1:      return type::u8;
                 case VT_UI2:      return type::u16;
                 case VT_UI4:      return type::u32;
+                case VT_UINT:     return type::u32;
                 case VT_UI8:      return type::u64;
                 case VT_R4:       return type::f32;
                 case VT_R8:       return type::f64;
@@ -151,12 +143,12 @@ namespace memexec
             }
         }
 
-        static bool convert(VARIANT_BOOL v_b)
+        static bool convert(VARIANT_BOOL v_b) noexcept
         {
             return v_b != VARIANT_FALSE;
         }
 
-        static VARIANT convert(value v)
+        static VARIANT convert(value v) 
         {
             // Implement
         }
@@ -177,10 +169,12 @@ namespace memexec
                 case VT_I1:       return value(static_cast<std::int8_t>(v.cVal));
                 case VT_I2:       return value(static_cast<std::int16_t>(v.iVal));
                 case VT_I4:       return value(static_cast<std::int32_t>(v.lVal));
+                case VT_INT:      return value(static_cast<std::int32_t>(v.intVal));
                 case VT_I8:       return value(static_cast<std::int64_t>(v.llVal));
                 case VT_UI1:      return value(static_cast<std::uint8_t>(v.bVal));
                 case VT_UI2:      return value(static_cast<std::uint16_t>(v.uiVal));
                 case VT_UI4:      return value(static_cast<std::uint32_t>(v.ulVal));
+                case VT_UINT:     return value(static_cast<std::uint32_t>(v.uintVal));
                 case VT_UI8:      return value(static_cast<std::uint64_t>(v.ullVal));
                 case VT_R4:       return value(static_cast<float>(v.fltVal));
                 case VT_R8:       return value(static_cast<double>(v.dblVal));
@@ -188,8 +182,16 @@ namespace memexec
                 default:          throw std::runtime_error("Unsupported \"VARIANT\" type.");
             }
         }
+    };
 
-        void cleanup()
+    class rcg
+    {
+    private:
+        
+        void* mem_ = nullptr;
+        std::size_t size_ = 0;
+
+        void cleanup() noexcept
         {
             if (mem_)
             {
@@ -208,7 +210,7 @@ namespace memexec
             std::vector<value*> arguments_values { }; // Implement
         };
 
-        rcg() {}
+        rcg() noexcept {}
 
         rcg(const std::uint8_t* code, std::size_t size)
         {
@@ -305,11 +307,11 @@ namespace memexec
         }
 
 
-        #if defined(_M_X64) || defined(__x86_64__)
+#ifdef _WIN64
 
         value assemble_and_call(const function_structure& str)
         {
-            VARTYPE return_type = convert(str.return_type);
+            VARTYPE return_type = value::convert(str.return_type);
 
             VARTYPE* arguments_types = ; // Implement
 
@@ -325,12 +327,12 @@ namespace memexec
                          arguments_values,
                          &result);
         
-            return convert(result);
+            return value::convert(result);
         }
        
-        #else
+#else
 
-        #endif
+#endif
 
         std::size_t size() const noexcept
         {
