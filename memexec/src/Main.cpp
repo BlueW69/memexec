@@ -3,17 +3,27 @@
 
 int main()
 {
-    std::uint8_t code[]
-    {
-        0xB8, 0x2A, 0x00, 0x00, 0x00, // mov eax, 42
-        0xC3                          // ret
-    };
+    // mov eax, [esp+4] ; Load the first argument from the stack into EAX
+    // add eax, eax     ; Double it
+    // ret 4            ; Return and pop 4 bytes(the int) off the stack(stdcall cleanup)
+    unsigned char code[] = { 0x8B, 0xC1, 0x03, 0xC0, 0xC3 };
+
+    std::vector<memexec::type> types { memexec::type::i32};
+    std::vector<memexec::value> values { 8 };
 
     memexec::rcg return_num;
 
     if (return_num.register_function(code) && return_num)
     {
-        std::cout << return_num.call<int>();
+        memexec::rcg::function_structure str { };
+        str.call_conv = memexec::callconv::stdcall;
+        str.return_type = memexec::type::i32;
+        str.arguments_types = types;
+        str.arguments_values = values;
+
+        memexec::value val = return_num.assemble_and_call(str);
+
+        std::cout << val.i32;
     }
 
     std::cin.get();
