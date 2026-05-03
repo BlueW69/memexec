@@ -23,7 +23,11 @@ namespace memexec
 
     constexpr CALLCONV convert(callconv call) noexcept
     {
+#ifdef _WIN64
+        return CC_STDCALL;
+#else
         return static_cast<CALLCONV>(call);
+#endif
     }
     
     enum class type : std::uint8_t
@@ -162,7 +166,7 @@ namespace memexec
 
         static VARIANT_BOOL convert(bool b)
         {
-            (b) ? VARIANT_TRUE : VARIANT_FALSE;
+            return (b) ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
         static VARIANT convert(value val) noexcept
@@ -443,11 +447,7 @@ namespace memexec
 
             if(FAILED(DispCallFunc(nullptr, 
                                    reinterpret_cast<ULONG_PTR>(mem_),
-#ifdef _WIN64                                  
-                                   convert(callconv::stdcall),
-#else
                                    convert(str.call_conv),
-#endif
                                    return_type,
                                    static_cast<UINT>(str.arguments_values.size()),
                                    arguments_types.data(),
