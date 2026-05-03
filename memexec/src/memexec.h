@@ -14,6 +14,18 @@
 
 namespace memexec
 {
+    enum class callconv : std::uint8_t
+    {
+        stdcall  = CC_STDCALL,
+        ccdecl   = CC_CDECL,
+        fastcall = CC_FASTCALL
+    };
+
+    constexpr CALLCONV convert(callconv call) noexcept
+    {
+        return static_cast<CALLCONV>(call);
+    }
+    
     enum class type : std::uint8_t
     {
         // ------------------------- Special Cases ------------------------- //
@@ -150,7 +162,7 @@ namespace memexec
 
         static VARIANT_BOOL convert(bool b)
         {
-            (b) ? VARIANT_TRUE : VARIANT_FALSE ;
+            (b) ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
         static VARIANT convert(value v) noexcept 
@@ -308,9 +320,10 @@ namespace memexec
 
         struct function_structure
         {
+            callconv call_conv { };
             type return_type { };
             std::vector<type> arguments_types { };
-            std::vector<value*> arguments_values { }; // Implement
+            std::vector<value> arguments_values { };
         };
 
         rcg() noexcept {}
@@ -409,34 +422,44 @@ namespace memexec
             return get<ReturnType, Params...>()(std::forward<Params>(args)...);
         }
 
-
-#ifdef _WIN64
-
         value assemble_and_call(const function_structure& str)
         {
+            std::vector<VARTYPE> arguments_types(str.arguments_types.size());
+            std::vector<VARIANT> arguments_values(str.arguments_values.size());
+            std::vector<VARIANTARG*> arguments_value_ptrs(str.arguments_values.size());
+
             VARTYPE return_type = value::convert(str.return_type);
-
-            VARTYPE* arguments_types = ; // Implement
-
-            VARIANTARG** arguments_values = ; // Implement
-        
+            
+            for (size_t i = 0; i < str.arguments_values.size(); i++)
+            {
+                arguments_types[i] = value::convert(str.arguments_types[i]);
+                VariantInit(&arguments_values[i]);
+                arguments_values[i] = value::convert(str.arguments_values[i]);
+                arguments_value_ptrs[i] = &arguments_values[i];
+            }
+            
             VARIANT result;
-            DispCallFunc(nullptr, 
-                         reinterpret_cast<ULONG_PTR>(mem_),
-                         CC_FASTCALL,
-                         return_type,
-                         static_cast<UINT>(str.arguments_values.size()),
-                         arguments_types,
-                         arguments_values,
-                         &result);
+            VariantInit(&result);
+
+            if(FAILED(DispCallFunc(nullptr, 
+                                   reinterpret_cast<ULONG_PTR>(mem_),
+#ifdef _WIN64                                  
+                                   convert(callconv::stdcall),
+#else
+                                   convert(str.call_conv),
+#endif
+                                   return_type,
+                                   static_cast<UINT>(str.arguments_values.size()),
+                                   arguments_types.data(),
+                                   arguments_value_ptrs.data(),
+                                   &result)))
+            {  
+                throw std::runtime_error("DispCallFunc failed.");
+            }
         
             return value::convert(result);
         }
-       
-#else
-
-#endif
-
+        
         std::size_t size() const noexcept
         {
             return size_;
