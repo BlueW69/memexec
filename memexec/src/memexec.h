@@ -129,9 +129,9 @@ namespace memexec
             }
         }
 
-        static type convert(VARTYPE v = VT_EMPTY)
+        static type convert(VARTYPE vartype = VT_EMPTY)
         {
-            VARTYPE base_type = v & VT_TYPEMASK;
+            VARTYPE base_type = vartype & VT_TYPEMASK;
 
             switch (base_type)
             {
@@ -155,9 +155,9 @@ namespace memexec
             }
         }
 
-        static bool convert(VARIANT_BOOL v_b) noexcept
+        static bool convert(VARIANT_BOOL var_bool) noexcept
         {
-            return v_b != VARIANT_FALSE;
+            return var_bool != VARIANT_FALSE;
         }
 
         static VARIANT_BOOL convert(bool b)
@@ -165,102 +165,102 @@ namespace memexec
             (b) ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
-        static VARIANT convert(value v) noexcept 
+        static VARIANT convert(value val) noexcept
         {
             VARIANT var;
             VariantInit(&var);
 
-            switch (v.t)
+            switch (val.t)
             {
 #ifdef _WIN64
                 case type::void_ptr:   
                 {
                     var.vt = VT_UINT_PTR;
-                    var.ullVal = reinterpret_cast<ULONGLONG>(v.void_ptr);
+                    var.ullVal = reinterpret_cast<ULONGLONG>(val.void_ptr);
                 }                    
                 break;
 #else
                 case type::void_ptr:
                 {
                     var.vt = VT_UINT_PTR;
-                    var.ulVal = reinterpret_cast<ULONG>(v.void_ptr);
+                    var.ulVal = reinterpret_cast<ULONG>(val.void_ptr);
                 }
                 break;
 #endif
                 case type::boolean:
                 {
                     var.vt = VT_BOOL;
-                    var.boolVal = convert(v.boolean);
+                    var.boolVal = convert(val.boolean);
                 }
                 break;
 
                 case type::i8:
                 {
                     var.vt = VT_I1;
-                    var.cVal = static_cast<CHAR>(v.i8);
+                    var.cVal = static_cast<CHAR>(val.i8);
                 }
                 break;
 
                 case type::i16:
                 {
                     var.vt = VT_I2;
-                    var.iVal = static_cast<SHORT>(v.i16);
+                    var.iVal = static_cast<SHORT>(val.i16);
                 }
                 break;
 
                 case type::i32:
                 {
                     var.vt = VT_I4;
-                    var.lVal = static_cast<LONG>(v.i32);
+                    var.lVal = static_cast<LONG>(val.i32);
                 }
                 break;
 
                 case type::i64:
                 {
                     var.vt = VT_I8;
-                    var.llVal = static_cast<LONGLONG>(v.i64);
+                    var.llVal = static_cast<LONGLONG>(val.i64);
                 }
                 break;
 
                 case type::u8: 
                 {
                     var.vt = VT_UI1;
-                    var.bVal = static_cast<BYTE>(v.u8);
+                    var.bVal = static_cast<BYTE>(val.u8);
                 }
                 break;
 
                 case type::u16:
                 {
                     var.vt = VT_UI2;
-                    var.uiVal = static_cast<USHORT>(v.u16);
+                    var.uiVal = static_cast<USHORT>(val.u16);
                 }
                 break;
 
                 case type::u32:
                 {
                     var.vt = VT_UI4;
-                    var.ulVal = static_cast<ULONG>(v.u32);
+                    var.ulVal = static_cast<ULONG>(val.u32);
                 }
                 break;
 
                 case type::u64:
                 {
                     var.vt = VT_UI8;
-                    var.ullVal = static_cast<ULONGLONG>(v.u64);
+                    var.ullVal = static_cast<ULONGLONG>(val.u64);
                 }
                 break;
 
                 case type::f32:
                 {
                     var.vt = VT_R4;
-                    var.fltVal = static_cast<FLOAT>(v.f32);
+                    var.fltVal = static_cast<FLOAT>(val.f32);
                 }
                 break;
 
                 case type::f64:
                 {
                     var.vt = VT_R8;
-                    var.dblVal = static_cast<DOUBLE>(v.f64);
+                    var.dblVal = static_cast<DOUBLE>(val.f64);
                 }
                 break;
             }
@@ -268,31 +268,31 @@ namespace memexec
             return var;
         }
 
-        static value convert(VARIANT v)
+        static value convert(VARIANT var)
         {
-            VARTYPE base_type = v.vt & VT_TYPEMASK;
+            VARTYPE base_type = var.vt & VT_TYPEMASK;
 
             switch (base_type)
             {
                 case VT_EMPTY:    return value();
 #ifdef _WIN64
-                case VT_UINT_PTR: return value(reinterpret_cast<void*>(v.ullVal));
+                case VT_UINT_PTR: return value(reinterpret_cast<void*>(var.ullVal));
 #else
-                case VT_UINT_PTR: return value(reinterpret_cast<void*>(v.ulVal));
+                case VT_UINT_PTR: return value(reinterpret_cast<void*>(var.ulVal));
 #endif
-                case VT_BOOL:     return value(convert(v.boolVal));
-                case VT_I1:       return value(static_cast<std::int8_t>(v.cVal));
-                case VT_I2:       return value(static_cast<std::int16_t>(v.iVal));
-                case VT_I4:       return value(static_cast<std::int32_t>(v.lVal));
-                case VT_INT:      return value(static_cast<std::int32_t>(v.intVal));
-                case VT_I8:       return value(static_cast<std::int64_t>(v.llVal));
-                case VT_UI1:      return value(static_cast<std::uint8_t>(v.bVal));
-                case VT_UI2:      return value(static_cast<std::uint16_t>(v.uiVal));
-                case VT_UI4:      return value(static_cast<std::uint32_t>(v.ulVal));
-                case VT_UINT:     return value(static_cast<std::uint32_t>(v.uintVal));
-                case VT_UI8:      return value(static_cast<std::uint64_t>(v.ullVal));
-                case VT_R4:       return value(static_cast<float>(v.fltVal));
-                case VT_R8:       return value(static_cast<double>(v.dblVal));
+                case VT_BOOL:     return value(convert(var.boolVal));
+                case VT_I1:       return value(static_cast<std::int8_t>(var.cVal));
+                case VT_I2:       return value(static_cast<std::int16_t>(var.iVal));
+                case VT_I4:       return value(static_cast<std::int32_t>(var.lVal));
+                case VT_INT:      return value(static_cast<std::int32_t>(var.intVal));
+                case VT_I8:       return value(static_cast<std::int64_t>(var.llVal));
+                case VT_UI1:      return value(static_cast<std::uint8_t>(var.bVal));
+                case VT_UI2:      return value(static_cast<std::uint16_t>(var.uiVal));
+                case VT_UI4:      return value(static_cast<std::uint32_t>(var.ulVal));
+                case VT_UINT:     return value(static_cast<std::uint32_t>(var.uintVal));
+                case VT_UI8:      return value(static_cast<std::uint64_t>(var.ullVal));
+                case VT_R4:       return value(static_cast<float>(var.fltVal));
+                case VT_R8:       return value(static_cast<double>(var.dblVal));
 
                 default:          throw std::runtime_error("Unsupported \"VARIANT\" type.");
             }
