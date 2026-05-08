@@ -434,11 +434,13 @@ namespace memexec
 
             VARTYPE return_type = value::convert(str.return_type);
             
-            for (size_t i = 0; i < str.arguments_values.size(); i++)
+            for (size_t i = 0, end = str.arguments_values.size(); i < end; i++)
             {
-                arguments_types[i] = value::convert(str.arguments_types[i]);
+                size_t  reversed_index = end - 1 - i;
+
+                arguments_types[i] = value::convert(str.arguments_types[reversed_index]);
                 VariantInit(&arguments_values[i]);
-                arguments_values[i] = value::convert(str.arguments_values[i]);
+                arguments_values[i] = value::convert(str.arguments_values[reversed_index]);
                 arguments_value_ptrs[i] = &arguments_values[i];
             }
             
@@ -460,6 +462,7 @@ namespace memexec
             return value::convert(result);
         }
         
+
         std::size_t size() const noexcept
         {
             return size_;
