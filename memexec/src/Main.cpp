@@ -11,17 +11,17 @@ int main()
     std::vector<memexec::type> types { memexec::type::i32};
     std::vector<memexec::value> values { 8 };
 
-    memexec::rcg return_num;
+    memexec::rfid return_num;
 
     if (return_num.register_function(code) && return_num)
     {
-        memexec::rcg::function_structure str { };
+        memexec::rfid::function_structure str { };
         str.call_conv = memexec::callconv::stdcall;
         str.return_type = memexec::type::i32;
         str.arguments_types = types;
         str.arguments_values = values;
 
-        memexec::value val = return_num.assemble_and_call(str);
+        memexec::value val = return_num.call(str);
 
         std::cout << val.i32;
     }
