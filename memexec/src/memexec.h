@@ -111,7 +111,7 @@ namespace memexec
         void* mem_ = nullptr;
         std::size_t size_ = 0;
 
-        void cleanup() noexcept
+        void virtual cleanup() noexcept
         {
             if (mem_)
             {
@@ -175,6 +175,47 @@ namespace memexec
             cleanup();
         }
 
+        std::size_t size() const noexcept
+        {
+            return size_;
+        }
+
+        bool is_valid() const noexcept
+        {
+            return mem_ != nullptr;
+        }
+
+        explicit operator bool() const noexcept
+        {
+            return is_valid();
+        }
+
+    };
+
+    /* Machine Code Execution Engine */
+    class mcxe : public memstager
+    {
+    public:
+
+        mcxe() noexcept : memstager() {}
+
+        mcxe(const std::uint8_t* code, std::size_t size) : memstager(code, size) { }
+
+        mcxe(std::span<std::uint8_t> code) : memstager(code) {}
+
+        mcxe(const mcxe&) = delete;
+        mcxe& operator=(const mcxe&) = delete;
+
+        mcxe(mcxe&& other) noexcept : memstager(std::move(other)) {}
+
+        mcxe& operator=(mcxe&& other) noexcept
+        {
+            memstager::operator=(std::move(other));
+            return *this;
+        }
+
+        ~mcxe() override = default;
+
 
         bool register_function(const std::uint8_t* code, std::size_t size) noexcept
         {
@@ -206,48 +247,6 @@ namespace memexec
         }
 
 
-        std::size_t size() const noexcept
-        {
-            return size_;
-        }
-
-        bool is_valid() const noexcept
-        {
-            return mem_ != nullptr;
-        }
-
-        explicit operator bool() const noexcept
-        {
-            return is_valid();
-        }
-
-    };
-
-    /* Machine Code Execution Engine */
-    class mcxe : public memstager
-    {
-    public:
-
-        mcxe() noexcept : memstager() {}
-
-        mcxe(const std::uint8_t* code, std::size_t size) : memstager(code, size) {}
-
-        mcxe(std::span<std::uint8_t> code) : memstager(code) {}
-
-        mcxe(const mcxe&) = delete;
-        mcxe& operator=(const mcxe&) = delete;
-
-        mcxe(mcxe&& other) noexcept : memstager(std::move(other)) {}
-
-        mcxe& operator=(mcxe&& other) noexcept
-        {
-            memstager::operator=(std::move(other));
-            return *this;
-        }
-
-        ~mcxe() override = default;
-
-
         template <typename ReturnType, typename... ParamTypes>
         inline auto get() const noexcept -> ReturnType(*)(ParamTypes...)
         {
@@ -264,6 +263,17 @@ namespace memexec
     /* Runtime Function Invocation Engine */
     class rfie : public memstager
     {
+    
+    public:
+
+        struct function_structure
+        {
+            callconv call_conv = callconv::stdcall;
+            type return_type = type::empty;
+            std::vector<type> arguments_types{ };
+            std::vector<value> arguments_values{ };
+        };
+
     private:
 
         struct dispcallfunc_structure
@@ -276,6 +286,41 @@ namespace memexec
         };
 
         dispcallfunc_structure str_ { };
+
+        void cache_dispcallfunc_structure(const function_structure& str)
+        {
+            str_.call_conv = convert(str.call_conv);
+            str_.return_type = convert(str.return_type);
+
+            str_.arguments_types.reserve(str.arguments_types.size());
+            str_.arguments_values.reserve(str.arguments_values.size());
+            str_.arguments_value_ptrs.reserve(str.arguments_values.size());
+
+            for (size_t i = 0, end = str.arguments_values.size(); i < end; i++)
+            {
+                size_t  reversed_index = end - 1 - i;
+
+                str_.arguments_types.emplace_back(convert(str.arguments_types[reversed_index]));
+                str_.arguments_values.emplace_back(convert(str.arguments_values[reversed_index]));
+                str_.arguments_value_ptrs.emplace_back(&str_.arguments_values.back());
+            }
+        }
+
+        void cleanup() noexcept override
+        {
+            memstager::cleanup();
+
+            str_.call_conv = CC_STDCALL;
+            str_.return_type = VT_EMPTY;
+
+            str_.arguments_types.clear();
+            str_.arguments_values.clear();
+            str_.arguments_value_ptrs.clear();
+            
+            str_.arguments_types.shrink_to_fit();
+            str_.arguments_values.shrink_to_fit();
+            str_.arguments_value_ptrs.shrink_to_fit(); 
+        }
 
         constexpr CALLCONV convert(callconv call) noexcept
         {
@@ -489,32 +534,18 @@ namespace memexec
 
     public: 
         
-        struct function_structure
-        {
-            callconv call_conv = callconv::stdcall;
-            type return_type = type::empty;
-            std::vector<type> arguments_types { };
-            std::vector<value> arguments_values { };
-        };
-
         rfie() noexcept : memstager() {}
 
         rfie(const std::uint8_t* code, std::size_t size, const function_structure& str) : memstager(code, size) 
-        {
-            str_.call_conv = convert(str.call_conv);
-            str_.return_type = convert(str.return_type);
-
-            str_.arguments_types.reserve(str.arguments_types.size());
-            str_.arguments_values.reserve(str.arguments_values.size());
-            str_.arguments_value_ptrs.reserve(str.arguments_values.size());
-
-            for (size_t i = 0, end = str.arguments_values.size(); i < end; i++)
+        { 
+            try
             {
-                size_t  reversed_index = end - 1 - i;
-
-                str_.arguments_types.emplace_back(convert(str.arguments_types[reversed_index]));
-                str_.arguments_values.emplace_back(convert(str.arguments_values[reversed_index]));
-                str_.arguments_value_ptrs.emplace_back(&str_.arguments_values.back());
+                cache_dispcallfunc_structure(str);
+            }
+            catch (...)
+            {
+                cleanup();
+                throw;
             }
         }
 
@@ -523,6 +554,7 @@ namespace memexec
         rfie(const rfie&) = delete;
         rfie& operator=(const rfie&) = delete;
 
+        // TODO
         //rfie(rfie&& other) noexcept : memstager(std::move(other)) {}
         //
         //rfie& operator=(rfie&& other) noexcept
@@ -533,7 +565,47 @@ namespace memexec
 
         ~rfie() override = default;
        
-        
+
+        bool register_function(const std::uint8_t* code, std::size_t size, const function_structure& str)
+        {
+            cleanup();
+
+            mem_ = VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+            if (!mem_)
+            {
+                return false;
+            }
+
+            std::memcpy(mem_, code, size);
+            size_ = size;
+
+            DWORD discard;
+            if (!VirtualProtect(mem_, size, PAGE_EXECUTE_READ, &discard))
+            {
+                memstager::cleanup();
+                return false;
+            }
+
+            try
+            {
+                cache_dispcallfunc_structure(str);
+            }
+            catch(...)
+            {
+                cleanup();
+                return false;
+            }
+
+            return true;
+        }
+
+        bool register_function(std::span<std::uint8_t> code, const function_structure& str)
+        {
+            return register_function(code.data(), code.size(), str);
+        }
+
+
         value call()
         { 
             VARIANT result;

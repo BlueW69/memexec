@@ -11,22 +11,27 @@ int main()
     std::vector<memexec::type> types { memexec::type::i32};
     std::vector<memexec::value> values { 8 };
 
-
-
     memexec::rfie::function_structure str{ };
     str.call_conv = memexec::callconv::stdcall;
     str.return_type = memexec::type::i32;
     str.arguments_types = types;
     str.arguments_values = values;
-    memexec::rfie return_num(code, str);
-
-    if (return_num)
+    
+    try
     {
+        memexec::rfie return_num(code, str); 
         
-        memexec::value val = return_num.call();
+        if (return_num)
+        {
+            memexec::value val = return_num.call();
 
-        std::cout << val.i32;
+            std::cout << val.i32;
+        }
+
+        std::cin.get();
     }
-
-    std::cin.get();
+    catch(...)
+    {
+        std::cout << "whoopsie";
+    }
 }
