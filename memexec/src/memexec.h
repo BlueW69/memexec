@@ -266,6 +266,17 @@ namespace memexec
     {
     private:
 
+        struct dispcallfunc_structure
+        { 
+            CALLCONV call_conv = CC_STDCALL;
+            VARTYPE return_type = VT_EMPTY;
+            std::vector<VARTYPE> arguments_types { };
+            std::vector<VARIANT> arguments_values { };
+            std::vector<VARIANTARG*> arguments_value_ptrs { };
+        };
+
+        dispcallfunc_structure str_ { };
+
         constexpr CALLCONV convert(callconv call) noexcept
         {
             #ifdef _WIN64
@@ -476,64 +487,65 @@ namespace memexec
             }
         }
 
-    public:
-
-        rfie() noexcept : memstager() {}
-
-        rfie(const std::uint8_t* code, std::size_t size) : memstager(code, size) {}
-
-        rfie(std::span<std::uint8_t> code) : memstager(code) {}
-
-        rfie(const rfie&) = delete;
-        rfie& operator=(const rfie&) = delete;
-
-        rfie(rfie&& other) noexcept : memstager(std::move(other)) {}
+    public: 
         
-        rfie& operator=(rfie&& other) noexcept
-        {
-            memstager::operator=(std::move(other));
-            return *this;
-        }
-
-        ~rfie() override = default;
-
-
         struct function_structure
         {
-            callconv call_conv { };
-            type return_type { };
+            callconv call_conv = callconv::stdcall;
+            type return_type = type::empty;
             std::vector<type> arguments_types { };
             std::vector<value> arguments_values { };
         };
-        
-        value call(const function_structure& str)
-        {
-            std::vector<VARTYPE> arguments_types(str.arguments_types.size());
-            std::vector<VARIANT> arguments_values(str.arguments_values.size());
-            std::vector<VARIANTARG*> arguments_value_ptrs(str.arguments_values.size());
 
-            VARTYPE return_type = convert(str.return_type);
-            
+        rfie() noexcept : memstager() {}
+
+        rfie(const std::uint8_t* code, std::size_t size, const function_structure& str) : memstager(code, size) 
+        {
+            str_.call_conv = convert(str.call_conv);
+            str_.return_type = convert(str.return_type);
+
+            str_.arguments_types.reserve(str.arguments_types.size());
+            str_.arguments_values.reserve(str.arguments_values.size());
+            str_.arguments_value_ptrs.reserve(str.arguments_values.size());
+
             for (size_t i = 0, end = str.arguments_values.size(); i < end; i++)
             {
                 size_t  reversed_index = end - 1 - i;
 
-                arguments_types[i] = convert(str.arguments_types[reversed_index]);
-                VariantInit(&arguments_values[i]);
-                arguments_values[i] = convert(str.arguments_values[reversed_index]);
-                arguments_value_ptrs[i] = &arguments_values[i];
+                str_.arguments_types.emplace_back(convert(str.arguments_types[reversed_index]));
+                str_.arguments_values.emplace_back(convert(str.arguments_values[reversed_index]));
+                str_.arguments_value_ptrs.emplace_back(&str_.arguments_values.back());
             }
-            
+        }
+
+        rfie(std::span<std::uint8_t> code, const function_structure& str) : rfie(code.data(), code.size(), str) {}
+
+        rfie(const rfie&) = delete;
+        rfie& operator=(const rfie&) = delete;
+
+        //rfie(rfie&& other) noexcept : memstager(std::move(other)) {}
+        //
+        //rfie& operator=(rfie&& other) noexcept
+        //{
+        //    memstager::operator=(std::move(other));
+        //    return *this;
+        //}
+
+        ~rfie() override = default;
+       
+        
+        value call()
+        { 
             VARIANT result;
             VariantInit(&result);
 
             if(FAILED(DispCallFunc(nullptr, 
                                    reinterpret_cast<ULONG_PTR>(mem_),
-                                   convert(str.call_conv),
-                                   return_type,
-                                   static_cast<UINT>(str.arguments_values.size()),
-                                   arguments_types.data(),
-                                   arguments_value_ptrs.data(),
+                                   str_.call_conv,
+                                   str_.return_type,
+                                   static_cast<UINT>(str_.arguments_values.size()),
+                                   str_.arguments_types.data(),
+                                   str_.arguments_value_ptrs.data(),
                                    &result)))
             {  
                 throw std::runtime_error("DispCallFunc failed.");
@@ -541,6 +553,5 @@ namespace memexec
         
             return convert(result);
         }
-        
     };
 }
