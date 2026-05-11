@@ -180,14 +180,11 @@ namespace memexec
             return size_;
         }
 
-        bool is_valid() const noexcept
-        {
-            return mem_ != nullptr;
-        }
+        virtual bool is_executable() const noexcept = 0;
 
         explicit operator bool() const noexcept
         {
-            return is_valid();
+            return is_executable();
         }
 
     };
@@ -257,6 +254,11 @@ namespace memexec
         inline ReturnType call(Params&&... args) const noexcept
         {
             return get<ReturnType, Params...>()(std::forward<Params>(args)...);
+        }
+
+        bool is_executable() const noexcept override
+        {
+            return mem_ != nullptr;
         }
     };
 
@@ -335,7 +337,7 @@ namespace memexec
             #endif
         }
 
-        static VARTYPE convert(type t = type::empty) noexcept
+        static VARTYPE convert(type t = type::empty)
         {
             switch (t)
             {
@@ -352,11 +354,13 @@ namespace memexec
                 case type::u64:      return VT_UI8;
                 case type::f32:      return VT_R4;
                 case type::f64:      return VT_R8;
+
+                default:             throw std::runtime_error("Unsupported \"memexec::type\"");
             }
         }
 
         /* Currently unused */
-        static type convert(VARTYPE vartype = VT_EMPTY) noexcept
+        static type convert(VARTYPE vartype = VT_EMPTY)
         {
             VARTYPE base_type = vartype & VT_TYPEMASK;
         
@@ -377,6 +381,8 @@ namespace memexec
                 case VT_UI8:      return type::u64;
                 case VT_R4:       return type::f32;
                 case VT_R8:       return type::f64;
+
+                default:          throw std::runtime_error("Unsupported \"VARTYPE\"");
             }
         }
 
@@ -390,13 +396,19 @@ namespace memexec
             return (b) ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
-        static VARIANT convert(value val) noexcept
+        static VARIANT convert(value val)
         {
             VARIANT var;
             VariantInit(&var);
 
             switch (val.t)
             {
+                    case type::empty:
+                    {
+                        var.vt = VT_EMPTY;
+                    }
+                    break;
+
                 #ifdef _WIN64
 
                     case type::void_ptr:
@@ -493,12 +505,17 @@ namespace memexec
                     var.dblVal = static_cast<DOUBLE>(val.f64);
                 }
                 break;
+
+                default:
+                {
+                    throw std::runtime_error("Unsupported \"memexec::type\"");
+                }
             }
 
             return var;
         }
 
-        static value convert(VARIANT var) noexcept
+        static value convert(VARIANT var)
         {
             VARTYPE base_type = var.vt & VT_TYPEMASK;
 
@@ -529,6 +546,8 @@ namespace memexec
                 case VT_UI8:      return value(static_cast<std::uint64_t>(var.ullVal));
                 case VT_R4:       return value(static_cast<float>(var.fltVal));
                 case VT_R8:       return value(static_cast<double>(var.dblVal));
+
+                default:          throw std::runtime_error("Unsuported \"VARTYPE\"");
             }
         }
 
@@ -554,19 +573,41 @@ namespace memexec
         rfie(const rfie&) = delete;
         rfie& operator=(const rfie&) = delete;
 
-        // TODO
-        //rfie(rfie&& other) noexcept : memstager(std::move(other)) {}
-        //
-        //rfie& operator=(rfie&& other) noexcept
-        //{
-        //    memstager::operator=(std::move(other));
-        //    return *this;
-        //}
+       rfie(rfie&& other) noexcept : memstager(std::move(other))
+       {
+           str_.call_conv = other.str_.call_conv;
+           str_.return_type = other.str_.return_type;
+           str_.arguments_types = std::move(other.str_.arguments_types);
+           str_.arguments_values = std::move(other.str_.arguments_values);
+           str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
+           
+           other.str_.call_conv = CC_STDCALL;
+           other.str_.return_type = VT_EMPTY;
+       }
+       
+       rfie& operator=(rfie&& other) noexcept
+       {
+           if (this != &other)
+           {
+               memstager::operator=(std::move(other));
 
-        ~rfie() override = default;
+               str_.call_conv = other.str_.call_conv;
+               str_.return_type = other.str_.return_type;
+               str_.arguments_types = std::move(other.str_.arguments_types);
+               str_.arguments_values = std::move(other.str_.arguments_values);
+               str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
+
+               other.str_.call_conv = CC_STDCALL;
+               other.str_.return_type = VT_EMPTY;
+           }
+
+           return *this;
+       }
+
+       ~rfie() override = default;
        
 
-        bool register_function(const std::uint8_t* code, std::size_t size, const function_structure& str)
+        bool register_function(const std::uint8_t* code, std::size_t size, const function_structure& str) noexcept
         {
             cleanup();
 
@@ -600,7 +641,7 @@ namespace memexec
             return true;
         }
 
-        bool register_function(std::span<std::uint8_t> code, const function_structure& str)
+        bool register_function(std::span<std::uint8_t> code, const function_structure& str) noexcept
         {
             return register_function(code.data(), code.size(), str);
         }
@@ -624,6 +665,14 @@ namespace memexec
             }
         
             return convert(result);
+        } 
+        
+        bool is_executable() const noexcept override
+        {
+            return mem_
+                && !str_.arguments_types.empty()
+                && !str_.arguments_values.empty()
+                && !str_.arguments_value_ptrs.empty();
         }
     };
 }
