@@ -9,18 +9,44 @@
 #include <stdexcept>
 #include <vector>
 #include <span>
+#include <array>
+#include <string_view>
 
 #pragma comment(lib, "oleaut32.lib")
 
-namespace memexec
+class memexec
 {
+private:
+
+    static constexpr inline std::array<std::string_view, 13> type_table_ = {"void", "void_ptr", "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64"};
+    static constexpr inline std::array<std::string_view, 3> callconv_table_ = {"stdcall", "ccdecl", "fastcall"};
+
+public:
+
     enum class callconv : std::uint8_t
     {
-        stdcall  = CC_STDCALL,
-        ccdecl   = CC_CDECL,
-        fastcall = CC_FASTCALL
+        stdcall = 0,
+        ccdecl,
+        fastcall
     };
 
+    static constexpr callconv string_to_callconv(std::string_view str) noexcept
+    {
+        for (std::uint8_t i = 0; i < callconv_table_.size(); i++)
+        {
+            if (callconv_table_[i] == str)
+            {
+                return static_cast<callconv>(i);
+            }
+        }
+    }
+
+    static constexpr std::string_view callconv_to_string(callconv call) noexcept
+    {
+        return callconv_table_[static_cast<std::uint8_t>(call)];
+    }
+
+    
     enum class type : std::uint8_t
     {
         // ------------------------- Special Cases ------------------------- //
@@ -50,6 +76,23 @@ namespace memexec
 
         // ----------------------------------------------------------------- //
     };
+    
+    static constexpr type string_to_type(std::string_view str) noexcept
+    {
+        for (std::uint8_t i = 0; i < type_table_.size(); i++)
+        {
+            if (type_table_[i] == str)
+            {
+                return static_cast<type>(i);
+            }
+        }
+    }
+
+    static constexpr std::string_view type_to_string(type t) noexcept
+    {
+        return type_table_[static_cast<std::uint8_t>(t)];
+    }
+
  
     class value
     {
@@ -289,6 +332,7 @@ namespace memexec
 
         dispcallfunc_structure str_ { };
 
+
         void cache_dispcallfunc_structure(const function_structure& str)
         {
             str_.call_conv = convert(str.call_conv);
@@ -308,21 +352,6 @@ namespace memexec
             }
         }
 
-        void cleanup() noexcept override
-        {
-            memstager::cleanup();
-
-            str_.call_conv = CC_STDCALL;
-            str_.return_type = VT_EMPTY;
-
-            str_.arguments_types.clear();
-            str_.arguments_values.clear();
-            str_.arguments_value_ptrs.clear();
-            
-            str_.arguments_types.shrink_to_fit();
-            str_.arguments_values.shrink_to_fit();
-            str_.arguments_value_ptrs.shrink_to_fit(); 
-        }
 
         constexpr CALLCONV convert(callconv call) noexcept
         {
@@ -332,7 +361,14 @@ namespace memexec
 
             #else
 
-                return static_cast<CALLCONV>(call);
+                switch(call)
+                {
+                    case callconv::stdcall:  return CC_STDCALL;
+                    case callconv::ccdecl:   return CC_CDECL;
+                    case callconv::fastcall: return CC_FASTCALL;
+
+                    default:                 throw std::runtime_error("Unsupported \"memexec::callconv\"");
+                }
 
             #endif
         }
@@ -356,33 +392,6 @@ namespace memexec
                 case type::f64:      return VT_R8;
 
                 default:             throw std::runtime_error("Unsupported \"memexec::type\"");
-            }
-        }
-
-        /* Currently unused */
-        static type convert(VARTYPE vartype = VT_EMPTY)
-        {
-            VARTYPE base_type = vartype & VT_TYPEMASK;
-        
-            switch (base_type)
-            {
-                case VT_EMPTY:    return type::empty;
-                case VT_UINT_PTR: return type::void_ptr;
-                case VT_BOOL:     return type::boolean;
-                case VT_I1:       return type::i8;
-                case VT_I2:       return type::i16;
-                case VT_I4:       return type::i32;
-                case VT_INT:      return type::i32;
-                case VT_I8:       return type::i64;
-                case VT_UI1:      return type::u8;
-                case VT_UI2:      return type::u16;
-                case VT_UI4:      return type::u32;
-                case VT_UINT:     return type::u32;
-                case VT_UI8:      return type::u64;
-                case VT_R4:       return type::f32;
-                case VT_R8:       return type::f64;
-
-                default:          throw std::runtime_error("Unsupported \"VARTYPE\"");
             }
         }
 
@@ -549,6 +558,23 @@ namespace memexec
 
                 default:          throw std::runtime_error("Unsuported \"VARTYPE\"");
             }
+        } 
+        
+
+        void cleanup() noexcept override
+        {
+            memstager::cleanup();
+
+            str_.call_conv = CC_STDCALL;
+            str_.return_type = VT_EMPTY;
+
+            str_.arguments_types.clear();
+            str_.arguments_values.clear();
+            str_.arguments_value_ptrs.clear();
+            
+            str_.arguments_types.shrink_to_fit();
+            str_.arguments_values.shrink_to_fit();
+            str_.arguments_value_ptrs.shrink_to_fit(); 
         }
 
     public: 
@@ -675,4 +701,4 @@ namespace memexec
                 && !str_.arguments_value_ptrs.empty();
         }
     };
-}
+};
