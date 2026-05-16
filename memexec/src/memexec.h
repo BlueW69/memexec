@@ -6,11 +6,15 @@
 
 #include <windows.h>
 #include <oleauto.h>
+
+#include <concepts>
 #include <stdexcept>
 #include <vector>
 #include <span>
 #include <array>
+#include <charconv>
 #include <string_view>
+#include <string>
 
 #pragma comment(lib, "oleaut32.lib")
 
@@ -18,10 +22,138 @@ class memexec
 {
 private:
 
+    static constexpr inline std::array<std::string_view, 2> format_table_ = {"decimal", "hex"};
     static constexpr inline std::array<std::string_view, 13> type_table_ = {"void", "void_ptr", "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64"};
     static constexpr inline std::array<std::string_view, 3> callconv_table_ = {"stdcall", "ccdecl", "fastcall"};
 
+    template <typename T>
+    requires std::integral<T>
+    static T parse(std::string_view str, int base) noexcept
+    {
+        if constexpr (std::same_as<T, bool>)
+        {
+            std::int64_t parsed_value = 0;
+            std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
+
+            return parsed_value != 0;
+        }
+        else
+        {
+            T parsed_value{ };
+            std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
+
+            return parsed_value;
+        }
+    }
+
+    static void* parse_ptr(std::string_view str, int base) noexcept
+    {
+        #ifdef _WIN64
+                    
+            return reinterpret_cast<void*>(parse<ULONGLONG>(str, base));
+
+        #else
+                   
+            return reinterpret_cast<void*>(parse<ULONG>(str, base));
+        
+        #endif 
+    }
+
+    template <typename T>
+    requires std::floating_point<T>
+    static T parse(std::string_view str, std::chars_format format) noexcept
+    {
+        T parsed_value { };
+        std::from_chars(str.data(), str.data() + str.size(), parsed_value, format);
+
+        return parsed_value; 
+    }
+
+    template <typename T>
+    static constexpr std::size_t get_buffer_size() noexcept
+    {
+        std::size_t buffer_size = 0;
+
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            buffer_size = 32;
+        }
+        else if constexpr (std::is_signed_v<T>)
+        {
+            buffer_size = std::numeric_limits<T>::digits10 + 2;
+        }
+        else
+        {
+            buffer_size = std::numeric_limits<T>::digits10 + 1;
+        }
+
+        return buffer_size;
+    }
+
+    template <typename T>
+    requires std::integral<T>
+    static std::string parse(T val, int base) noexcept
+    {
+        if constexpr (std::same_as<T, bool>)
+        {
+            return (val) ? std::string("1") : std::string("0");
+        }
+        else
+        {
+            char buffer[get_buffer_size<T>()];
+            auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val, base);
+
+            return std::string(buffer, ptr);
+        }
+    }
+
+    static std::string parse_ptr(void* void_ptr, int base) noexcept
+    {
+        #ifdef _WIN64
+
+            return parse<ULONGLONG>(reinterpret_cast<ULONGLONG>(void_ptr), base);
+
+        #else
+
+            return parse<ULONG>(reinterpret_cast<ULONG>(void_ptr), base);
+
+        #endif 
+    }
+
+    template <typename T>
+    requires std::floating_point<T>
+    static std::string parse(T val, std::chars_format format) noexcept
+    {
+        char buffer[get_buffer_size<T>()];
+        auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val, format);
+
+        return std::string(buffer, ptr);
+    }
+
 public:
+
+    enum class format : std::uint8_t
+    {
+        decimal = 0,
+        hex
+    };
+
+    static constexpr format string_to_format(std::string_view str) noexcept
+    {
+        for (int i = 0; i < format_table_.size(); i++)
+        {
+            if (format_table_[i] == str)
+            {
+                return static_cast<format>(i);
+            }
+        }
+    }
+
+    static constexpr std::string_view callconv_to_string(format f) noexcept
+    {
+        return format_table_[static_cast<int>(f)];
+    }
+
 
     enum class callconv : std::uint8_t
     {
@@ -32,7 +164,7 @@ public:
 
     static constexpr callconv string_to_callconv(std::string_view str) noexcept
     {
-        for (std::uint8_t i = 0; i < callconv_table_.size(); i++)
+        for (int i = 0; i < callconv_table_.size(); i++)
         {
             if (callconv_table_[i] == str)
             {
@@ -43,7 +175,7 @@ public:
 
     static constexpr std::string_view callconv_to_string(callconv call) noexcept
     {
-        return callconv_table_[static_cast<std::uint8_t>(call)];
+        return callconv_table_[static_cast<int>(call)];
     }
 
     
@@ -79,7 +211,7 @@ public:
     
     static constexpr type string_to_type(std::string_view str) noexcept
     {
-        for (std::uint8_t i = 0; i < type_table_.size(); i++)
+        for (int i = 0; i < type_table_.size(); i++)
         {
             if (type_table_[i] == str)
             {
@@ -90,7 +222,7 @@ public:
 
     static constexpr std::string_view type_to_string(type t) noexcept
     {
-        return type_table_[static_cast<std::uint8_t>(t)];
+        return type_table_[static_cast<int>(t)];
     }
 
  
@@ -145,6 +277,74 @@ public:
 
         ~value() = default;
     };
+
+    static value string_to_value(std::string_view str, type t, format f = format::decimal)
+    {
+        std::chars_format char_format = std::chars_format::general;
+        int base = 10;
+
+        if (f != format::decimal)
+        {
+            char_format = std::chars_format::hex;
+            base = 16;
+
+            if (str.starts_with("0x") || str.starts_with("0X"))
+            {
+                str.remove_prefix(2);
+            }
+        }
+
+        switch (t)
+        { 
+            case type::empty:    return value();
+            case type::void_ptr: return value(parse_ptr(str, base));
+            case type::boolean:  return value(parse<bool>(str, base));
+            case type::i8:       return value(parse<std::int8_t>(str, base));
+            case type::i16:      return value(parse<std::int16_t>(str, base));
+            case type::i32:      return value(parse<std::int32_t>(str, base));
+            case type::i64:      return value(parse<std::int64_t>(str, base));
+            case type::u8:       return value(parse<std::uint8_t>(str, base));
+            case type::u16:      return value(parse<std::uint16_t>(str, base));
+            case type::u32:      return value(parse<std::uint32_t>(str, base));
+            case type::u64:      return value(parse<std::uint64_t>(str, base));
+            case type::f32:      return value(parse<float>(str, char_format));
+            case type::f64:      return value(parse<double>(str, char_format));
+
+            default:             return value();
+        }
+    }
+
+    static std::string value_to_string(value val, format f = format::decimal)
+    {
+        std::chars_format char_format = std::chars_format::general;
+        int base = 10;
+
+        if (f != format::decimal)
+        {
+            char_format = std::chars_format::hex;
+            base = 16;
+        }
+
+        switch (val.t)
+        {
+            case type::empty:    return "";
+            case type::void_ptr: return parse_ptr(val.void_ptr, base);
+            case type::boolean:  return parse(val.boolean, base);
+            case type::i8:       return parse(val.i8, base);
+            case type::i16:      return parse(val.i16, base);
+            case type::i32:      return parse(val.i32, base);
+            case type::i64:      return parse(val.i64, base);
+            case type::u8:       return parse(val.u8, base);
+            case type::u16:      return parse(val.u16, base);
+            case type::u32:      return parse(val.u32, base);
+            case type::u64:      return parse(val.u64, base);
+            case type::f32:      return parse(val.f32, char_format);
+            case type::f64:      return parse(val.f64, char_format);
+
+            default:             return "";
+        }
+    }
+
 
     /* Memory Stager */
     class memstager
@@ -315,8 +515,8 @@ public:
         {
             callconv call_conv = callconv::stdcall;
             type return_type = type::empty;
-            std::vector<type> arguments_types{ };
-            std::vector<value> arguments_values{ };
+            std::vector<type> arguments_types { };
+            std::vector<value> arguments_values { };
         };
 
     private:
