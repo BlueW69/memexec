@@ -15,6 +15,8 @@
 #include <charconv>
 #include <string_view>
 #include <string>
+#include <format>
+#include <cstdint>
 
 #pragma comment(lib, "oleaut32.lib")
 
@@ -69,65 +71,76 @@ private:
         return parsed_value; 
     }
 
-    template <typename T>
-    static constexpr std::size_t get_buffer_size() noexcept
-    {
-        std::size_t buffer_size = 0;
+public:
+    
+    enum class format : std::uint8_t;
 
-        if constexpr (std::is_floating_point_v<T>)
-        {
-            buffer_size = 32;
-        }
-        else if constexpr (std::is_signed_v<T>)
-        {
-            buffer_size = std::numeric_limits<T>::digits10 + 2;
-        }
-        else
-        {
-            buffer_size = std::numeric_limits<T>::digits10 + 1;
-        }
-
-        return buffer_size;
-    }
-
+private:
+    
     template <typename T>
     requires std::integral<T>
-    static std::string parse(T val, int base) noexcept
+    static std::string parse(T val, format f)
     {
         if constexpr (std::same_as<T, bool>)
         {
-            return (val) ? std::string("1") : std::string("0");
+            return val ? "1" : "0";
         }
         else
         {
-            char buffer[get_buffer_size<T>()];
-            auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val, base);
-
-            return std::string(buffer, ptr);
+            if (f == format::decimal)
+            {
+                return std::format("{:d}", val);
+            }
+            else
+            {
+                return std::format("{:x}", val);
+            }
         }
     }
 
-    static std::string parse_ptr(void* void_ptr, int base) noexcept
+    static std::string parse_ptr(void* void_ptr, format f)
     {
         #ifdef _WIN64
 
-            return parse<ULONGLONG>(reinterpret_cast<ULONGLONG>(void_ptr), base);
+            ULONGLONG val = reinterpret_cast<ULONGLONG>(void_ptr);
+
+            if (f == format::decimal)
+            {
+                return std::format("{:020d}", val);
+            }
+            else
+            {
+                return std::format("{:016x}", val);
+            }
 
         #else
 
-            return parse<ULONG>(reinterpret_cast<ULONG>(void_ptr), base);
+            ULONG val = reinterpret_cast<ULONG>(void_ptr);
 
-        #endif 
+            if (f == format::decimal)
+            {
+                return std::format("{:010d}", val);
+            }
+            else
+            {
+                return std::format("{:08x}", val);
+            }
+
+        #endif
     }
 
     template <typename T>
     requires std::floating_point<T>
-    static std::string parse(T val, std::chars_format format) noexcept
+    static std::string parse(T val, format f)
     {
-        char buffer[get_buffer_size<T>()];
-        auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val, format);
-
-        return std::string(buffer, ptr);
+        if (f == format::decimal)
+        {
+            return std::format("{:g}", val);
+        }
+        else
+        {
+            return std::format("{:a}", val);
+        }
     }
 
 public:
@@ -280,10 +293,15 @@ public:
 
     static value string_to_value(std::string_view str, type t, format f = format::decimal)
     {
-        std::chars_format char_format = std::chars_format::general;
-        int base = 10;
+        std::chars_format char_format { };
+        int base = 0;
 
-        if (f != format::decimal)
+        if (f == format::decimal)
+        {
+            char_format = std::chars_format::general;
+            base = 10;
+        }
+        else
         {
             char_format = std::chars_format::hex;
             base = 16;
@@ -316,30 +334,21 @@ public:
 
     static std::string value_to_string(value val, format f = format::decimal)
     {
-        std::chars_format char_format = std::chars_format::general;
-        int base = 10;
-
-        if (f != format::decimal)
-        {
-            char_format = std::chars_format::hex;
-            base = 16;
-        }
-
         switch (val.t)
         {
             case type::empty:    return "";
-            case type::void_ptr: return parse_ptr(val.void_ptr, base);
-            case type::boolean:  return parse(val.boolean, base);
-            case type::i8:       return parse(val.i8, base);
-            case type::i16:      return parse(val.i16, base);
-            case type::i32:      return parse(val.i32, base);
-            case type::i64:      return parse(val.i64, base);
-            case type::u8:       return parse(val.u8, base);
-            case type::u16:      return parse(val.u16, base);
-            case type::u32:      return parse(val.u32, base);
-            case type::u64:      return parse(val.u64, base);
-            case type::f32:      return parse(val.f32, char_format);
-            case type::f64:      return parse(val.f64, char_format);
+            case type::void_ptr: return parse_ptr(val.void_ptr, f);
+            case type::boolean:  return parse(val.boolean, f);
+            case type::i8:       return parse(val.i8, f);
+            case type::i16:      return parse(val.i16, f);
+            case type::i32:      return parse(val.i32, f);
+            case type::i64:      return parse(val.i64, f);
+            case type::u8:       return parse(val.u8, f);
+            case type::u16:      return parse(val.u16, f);
+            case type::u32:      return parse(val.u32, f);
+            case type::u64:      return parse(val.u64, f);
+            case type::f32:      return parse(val.f32, f);
+            case type::f64:      return parse(val.f64, f);
 
             default:             return "";
         }
