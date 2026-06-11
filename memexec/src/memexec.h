@@ -18,6 +18,7 @@
 #include <format>
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 #pragma comment(lib, "oleaut32.lib")
 
@@ -165,7 +166,106 @@ private:
         }
     }
 
+    static std::optional<std::pair<std::chars_format, int>> remove_prefix(std::string_view* str, char delimiter, format f) noexcept
+    {
+        if (str->empty())
+        {
+            return std::nullopt;
+        }
+
+        size_t start = str->find_first_not_of(std::string(std::string(" +\t\r\n") + delimiter));
+
+        if (start == std::string_view::npos)
+        {
+            return std::nullopt;
+        }
+
+        str->remove_prefix(start);
+
+        std::chars_format char_format{ };
+        int base = 0;
+
+        if (f == format::decimal)
+        {
+            char_format = std::chars_format::general;
+            base = 10;
+        }
+        else
+        {
+            char_format = std::chars_format::hex;
+            base = 16;
+
+            if (str->starts_with("0x") || str->starts_with("0X"))
+            {
+                str->remove_prefix(2);
+                
+                if (str->empty())
+                {
+                    return std::nullopt;
+                }
+            }
+        }
+
+        return std::pair(char_format, base);
+    }
+
 public:
+
+    static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, const char delimeter, format f = format::decimal) noexcept
+    {
+        std::vector<std::uint8_t> code { };
+        code.reserve(str.size() / 2);
+
+        while (!str.empty())
+        {
+            std::size_t delim_pos = str.find(delimeter);
+
+            std::string_view token = str.substr(0, delim_pos);
+
+            if (!token.empty())
+            {
+                auto result = remove_prefix(&token, delimeter, f);
+
+                if (!result)
+                {
+                    return std::nullopt;
+                }
+
+                auto& [char_format, base] = result.value();
+
+                std::optional<std::uint8_t> converted_code = parse<std::uint8_t>(token, base);
+
+                if (!converted_code)
+                {
+                    return std::nullopt;
+                }
+
+                code.emplace_back(converted_code.value());
+            }
+
+            if (delim_pos == std::string_view::npos)
+            {
+                break;
+            }
+
+            str.remove_prefix(delim_pos + 1);
+        }
+
+        return code;   
+    }
+    
+    static std::optional<std::string> code_to_string(const std::vector<std::uint8_t>& code, const char delimeter, format f = format::decimal) noexcept
+    {
+        try
+        {
+
+        }
+        catch (...)
+        {
+            return std::nullopt;
+        }
+    }
+
 
     enum class format : std::uint8_t
     {
@@ -342,48 +442,14 @@ public:
 
     static std::optional<value> string_to_value(std::string_view str, type t, format f = format::decimal) noexcept
     {
-        if (str.empty())
+        auto result = remove_prefix(&str, ' ', f);
+        
+        if (!result)
         {
             return std::nullopt;
         }
-
-        auto start = str.find_first_not_of(" \t\r\n");
         
-        if (start == std::string_view::npos)
-        {
-           return std::nullopt;
-        }
-        
-        str.remove_prefix(start);
-        
-        if (str.front() == '+')
-        {
-            str.remove_prefix(1);
-        
-            if (str.empty())
-            {
-                return std::nullopt;
-            }
-        }
-        
-        std::chars_format char_format { };
-        int base = 0;
-
-        if (f == format::decimal)
-        {
-            char_format = std::chars_format::general;
-            base = 10;
-        }
-        else
-        {
-            char_format = std::chars_format::hex;
-            base = 16;
-
-            if (str.starts_with("0x") || str.starts_with("0X"))
-            {
-                str.remove_prefix(2);
-            }
-        }
+        auto& [char_format, base] = result.value();
 
         switch (t)
         { 
@@ -405,7 +471,7 @@ public:
         }
     }
 
-    static std::optional<std::string> value_to_string(value val, format f = format::decimal) noexcept
+    static std::optional<std::string> value_to_string(const value& val, format f = format::decimal) noexcept
     {
         try
         {
