@@ -37,9 +37,8 @@ private:
         if constexpr (std::same_as<T, bool>)
         {
             std::int64_t parsed_value = 0;
-            auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
-
-            if (err == std::errc { })
+            
+            if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base))
             {
                 return parsed_value != 0;
             }
@@ -49,9 +48,8 @@ private:
         else
         {
             T parsed_value { };
-            auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
-
-            if (err == std::errc { })
+            
+            if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base))
             {
                 return parsed_value;
             }
@@ -84,9 +82,8 @@ private:
     static std::optional<T> parse(std::string_view str, std::chars_format format) noexcept
     {
         T parsed_value { };
-        auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format);
-
-        if (err == std::errc{ })
+        
+        if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format))
         {
             return parsed_value;
         }
@@ -106,7 +103,14 @@ private:
     {
         if constexpr (std::same_as<T, bool>)
         {
-            return val ? "1" : "0";
+            if (f == format::decimal)
+            {
+                return val ? "1" : "0";
+            }
+            else
+            {
+                return val ? "0x01" : "0x00";
+            }
         }
         else
         {
@@ -116,7 +120,7 @@ private:
             }
             else
             {
-                return std::format("{:#x}", val);
+                return std::format("0x{:02X}", val);
             }
         }
     }
@@ -133,7 +137,7 @@ private:
             }
             else
             {
-                return std::format("{:#016x}", val);
+                return std::format("0x{:016X}", val);
             }
 
         #else
@@ -146,7 +150,7 @@ private:
             }
             else
             {
-                return std::format("{:#08x}", val);
+                return std::format("0x{:08X}", val);
             }
 
         #endif
@@ -173,7 +177,7 @@ private:
             return std::nullopt;
         }
 
-        size_t start = str->find_first_not_of(std::string(std::string(" +\t\r\n") + delimiter.data()));
+        std::size_t start = str->find_first_not_of(std::string(std::string(" +\t\r\n") + delimiter.data()));
 
         if (start == std::string_view::npos)
         {
@@ -182,7 +186,7 @@ private:
 
         str->remove_prefix(start);
 
-        std::chars_format char_format{ };
+        std::chars_format char_format { };
         int base = 0;
 
         if (f == format::decimal)
@@ -714,9 +718,9 @@ public:
             str_.arguments_values.reserve(str.arguments_values.size());
             str_.arguments_value_ptrs.reserve(str.arguments_values.size());
 
-            for (size_t i = 0, end = str.arguments_values.size(); i < end; i++)
+            for (std::size_t i = 0, end = str.arguments_values.size(); i < end; i++)
             {
-                size_t  reversed_index = end - 1 - i;
+                std::size_t  reversed_index = end - 1 - i;
 
                 str_.arguments_types.emplace_back(convert(str.arguments_types[reversed_index]));
                 str_.arguments_values.emplace_back(convert(str.arguments_values[reversed_index]));
