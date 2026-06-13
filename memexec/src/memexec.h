@@ -38,8 +38,9 @@ private:
         {
             std::int64_t parsed_value = 0;
             
-            if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base); ptr == str.data() + str.size()
-            &&                                                                                              err == std::errc { })
+            auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
+
+            if (err == std::errc { } && ptr == str.data() + str.size())
             {
                 return parsed_value != 0;
             }
@@ -50,8 +51,9 @@ private:
         {
             T parsed_value { };
             
-            if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base); ptr == str.data() + str.size()
-            &&                                                                                              err == std::errc{ })
+            auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base);
+
+            if (err == std::errc { } && ptr == str.data() + str.size())
             {
                 return parsed_value;
             }
@@ -85,8 +87,9 @@ private:
     {
         T parsed_value { };
         
-        if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format); ptr == str.data() + str.size()
-        &&                                                                                                err == std::errc{ })
+        auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format);
+
+        if (err == std::errc { } && ptr == str.data() + str.size())
         {
             return parsed_value;
         }
