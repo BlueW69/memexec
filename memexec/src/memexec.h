@@ -116,7 +116,7 @@ private:
             }
             else
             {
-                return std::format("{:x}", val);
+                return std::format("{:#x}", val);
             }
         }
     }
@@ -133,7 +133,7 @@ private:
             }
             else
             {
-                return std::format("{:016x}", val);
+                return std::format("{:#016x}", val);
             }
 
         #else
@@ -146,7 +146,7 @@ private:
             }
             else
             {
-                return std::format("{:08x}", val);
+                return std::format("{:#08x}", val);
             }
 
         #endif
@@ -166,14 +166,14 @@ private:
         }
     }
 
-    static std::optional<std::pair<std::chars_format, int>> remove_prefix(std::string_view* str, char delimiter, format f) noexcept
+    static std::optional<std::pair<std::chars_format, int>> remove_prefix(std::string_view* str, std::string_view delimiter, format f) noexcept
     {
         if (str->empty())
         {
             return std::nullopt;
         }
 
-        size_t start = str->find_first_not_of(std::string(std::string(" +\t\r\n") + delimiter));
+        size_t start = str->find_first_not_of(std::string(std::string(" +\t\r\n") + delimiter.data()));
 
         if (start == std::string_view::npos)
         {
@@ -211,7 +211,7 @@ private:
 
 public:
 
-    static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, const char delimeter, format f = format::decimal) noexcept
+    static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimeter, format f = format::decimal) noexcept
     {
         std::vector<std::uint8_t> code { };
         code.reserve(str.size() / 2);
@@ -248,17 +248,34 @@ public:
                 break;
             }
 
-            str.remove_prefix(delim_pos + 1);
+            str.remove_prefix(delim_pos + delimeter.size());
         }
 
         return code;   
     }
     
-    static std::optional<std::string> code_to_string(const std::vector<std::uint8_t>& code, const char delimeter, format f = format::decimal) noexcept
+    static std::optional<std::string> code_to_string(const std::span<std::uint8_t>& code, std::string_view delimeter, format f = format::decimal) noexcept
     {
+        if (code.empty())
+        {
+            return std::nullopt;
+        }
+
         try
         {
+            std::string result { };
 
+            for (std::size_t i = 0; i < code.size(); i++)
+            {
+                result.append(parse(code[i], f));
+
+                if (i < code.size() - 1)
+                {
+                    result.append(delimeter);
+                }
+            }
+
+            return result;
         }
         catch (...)
         {
@@ -387,7 +404,7 @@ public:
         return std::nullopt;
     }
 
- 
+    
     class value
     {
     public:
@@ -442,7 +459,7 @@ public:
 
     static std::optional<value> string_to_value(std::string_view str, type t, format f = format::decimal) noexcept
     {
-        auto result = remove_prefix(&str, ' ', f);
+        auto result = remove_prefix(&str, "", f);
         
         if (!result)
         {

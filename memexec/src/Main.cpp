@@ -6,10 +6,26 @@ int main()
     // mov eax, [esp+4] ; Load the first argument from the stack into EAX
     // add eax, eax     ; Double it
     // ret 4            ; Return and pop 4 bytes(the int) off the stack(stdcall cleanup)
+    
+    
+    
     std::vector<std::uint8_t> code = { 0x8B, 0xC1, 0x03, 0xC0, 0xC3 };
+    
+    std::string op = memexec::code_to_string(code, " | ", memexec::format::hex).value();
+
+    std::cout << op << std::endl;
+
+    std::vector<std::uint8_t> code_conv = memexec::string_to_code(op, " | ", memexec::format::hex).value();
+
+    for (auto& p : code_conv)
+    {
+        std::cout << static_cast<int>(p) << " | ";
+    }
+
+    std::cout << std::endl;
 
     std::vector<memexec::type> types{ memexec::string_to_type("i32").value()};
-    std::vector<memexec::value> values { memexec::string_to_value("3", types[0]).value()};
+    std::vector<memexec::value> values { memexec::string_to_value("4", types[0]).value()};
 
     memexec::rfie::function_structure str{ };
     str.call_conv = memexec::string_to_callconv("stdcall").value();
@@ -19,13 +35,13 @@ int main()
 
     try
     {
-        memexec::rfie return_num(code, str);
+        memexec::rfie return_num(code_conv, str);
         
         if (return_num)
         {
             memexec::value val = return_num.call();
 
-            std::cout << val.i32;
+            std::cout << val.i32 << std::endl;
         }
 
         std::cin.get();
