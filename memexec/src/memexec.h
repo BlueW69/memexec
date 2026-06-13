@@ -38,7 +38,8 @@ private:
         {
             std::int64_t parsed_value = 0;
             
-            if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base))
+            if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base); ptr == str.data() + str.size()
+            &&                                                                                              err == std::errc { })
             {
                 return parsed_value != 0;
             }
@@ -49,7 +50,8 @@ private:
         {
             T parsed_value { };
             
-            if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base))
+            if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, base); ptr == str.data() + str.size()
+            &&                                                                                              err == std::errc{ })
             {
                 return parsed_value;
             }
@@ -83,7 +85,8 @@ private:
     {
         T parsed_value { };
         
-        if (auto res = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format))
+        if (auto [ptr, err] = std::from_chars(str.data(), str.data() + str.size(), parsed_value, format); ptr == str.data() + str.size()
+        &&                                                                                                err == std::errc{ })
         {
             return parsed_value;
         }
@@ -217,6 +220,11 @@ public:
 
     static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimeter, format f = format::decimal) noexcept
     {
+        if (str.empty())
+        {
+            return std::nullopt;
+        }
+
         std::vector<std::uint8_t> code { };
         code.reserve(str.size() / 2);
 
@@ -244,7 +252,7 @@ public:
                     return std::nullopt;
                 }
 
-                code.emplace_back(converted_code.value());
+                code.push_back(converted_code.value());
             }
 
             if (delim_pos == std::string_view::npos)
