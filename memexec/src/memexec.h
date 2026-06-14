@@ -24,6 +24,10 @@
 
 class memexec
 {
+public:
+
+    memexec() = delete;
+
 private:
 
     static constexpr inline std::array<std::string_view, 2> format_table_ = {"decimal", "hex"};
@@ -176,7 +180,7 @@ private:
         }
     }
 
-    static std::optional<std::pair<std::chars_format, int>> remove_prefix(std::string_view* str, std::string_view delimiter, format f) noexcept
+    static constexpr std::optional<std::pair<std::chars_format, int>> remove_prefix(std::string_view* str, std::string_view delimiter, format f) noexcept
     {
         if (str->empty())
         {
@@ -307,7 +311,7 @@ public:
 
     static constexpr std::optional<format> string_to_format(std::string_view str) noexcept
     {
-        for (int i = 0; i < format_table_.size(); i++)
+        for (std::size_t i = 0; i < format_table_.size(); i++)
         {
             if (format_table_[i] == str)
             {
@@ -320,7 +324,7 @@ public:
 
     static constexpr std::optional<std::string_view> callconv_to_string(format f) noexcept
     {
-        int index = static_cast<int>(f);
+        std::size_t index = static_cast<std::size_t>(f);
 
         if (index < format_table_.size())
         {
@@ -340,7 +344,7 @@ public:
 
     static constexpr std::optional<callconv> string_to_callconv(std::string_view str) noexcept
     {
-        for (int i = 0; i < callconv_table_.size(); i++)
+        for (std::size_t i = 0; i < callconv_table_.size(); i++)
         {
             if (callconv_table_[i] == str)
             {
@@ -353,7 +357,7 @@ public:
 
     static constexpr std::optional<std::string_view> callconv_to_string(callconv call) noexcept
     {
-        int index = static_cast<int>(call);
+        std::size_t index = static_cast<std::size_t>(call);
 
         if (index < callconv_table_.size())
         {
@@ -396,7 +400,7 @@ public:
     
     static constexpr std::optional<type> string_to_type(std::string_view str) noexcept
     {
-        for (int i = 0; i < type_table_.size(); i++)
+        for (std::size_t i = 0; i < type_table_.size(); i++)
         {
             if (type_table_[i] == str)
             {
@@ -409,7 +413,7 @@ public:
 
     static constexpr std::optional<std::string_view> type_to_string(type t) noexcept
     {
-        int index = static_cast<int>(t);
+        std::size_t index = static_cast<std::size_t>(t);
 
         if (index < type_table_.size())
         {
@@ -445,31 +449,31 @@ public:
             double f64;
         };
 
-        value() noexcept : t(type::empty), void_ptr(nullptr) {}
+        constexpr value() noexcept : t(type::empty), void_ptr(nullptr) {}
 
-        value(void* val) noexcept : t(type::void_ptr), void_ptr(val) {}
-        value(bool val) noexcept : t(type::boolean), boolean(val) {}
+        constexpr value(void* val) noexcept : t(type::void_ptr), void_ptr(val) {}
+        constexpr value(bool val) noexcept : t(type::boolean), boolean(val) {}
 
-        value(std::int8_t val) noexcept : t(type::i8), i8(val) {}
-        value(std::int16_t val) noexcept : t(type::i16), i16(val) {}
-        value(std::int32_t val) noexcept : t(type::i32), i32(val) {}
-        value(std::int64_t val) noexcept : t(type::i64), i64(val) {}
+        constexpr value(std::int8_t val) noexcept : t(type::i8), i8(val) {}
+        constexpr value(std::int16_t val) noexcept : t(type::i16), i16(val) {}
+        constexpr value(std::int32_t val) noexcept : t(type::i32), i32(val) {}
+        constexpr value(std::int64_t val) noexcept : t(type::i64), i64(val) {}
 
-        value(std::uint8_t val) noexcept : t(type::u8), u8(val) {}
-        value(std::uint16_t val) noexcept : t(type::u16), u16(val) {}
-        value(std::uint32_t val) noexcept : t(type::u32), u32(val) {}
-        value(std::uint64_t val) noexcept : t(type::u64), u64(val) {}
+        constexpr value(std::uint8_t val) noexcept : t(type::u8), u8(val) {}
+        constexpr value(std::uint16_t val) noexcept : t(type::u16), u16(val) {}
+        constexpr value(std::uint32_t val) noexcept : t(type::u32), u32(val) {}
+        constexpr value(std::uint64_t val) noexcept : t(type::u64), u64(val) {}
 
-        value(float  val) noexcept : t(type::f32), f32(val) {}
-        value(double val) noexcept : t(type::f64), f64(val) {}
+        constexpr value(float  val) noexcept : t(type::f32), f32(val) {}
+        constexpr value(double val) noexcept : t(type::f64), f64(val) {}
 
-        value(const value&) noexcept = default;
-        value& operator=(const value&) noexcept = default;
+        constexpr value(const value&) noexcept = default;
+        constexpr value& operator=(const value&) noexcept = default;
 
-        value(value&&) noexcept = default;
-        value& operator=(value&&) noexcept = default;
+        constexpr value(value&&) noexcept = default;
+        constexpr value& operator=(value&&) noexcept = default;
 
-        ~value() = default;
+        constexpr ~value() = default;
     };
 
     static std::optional<value> string_to_value(std::string_view str, type t, format f = format::decimal) noexcept

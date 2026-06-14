@@ -7,8 +7,6 @@ int main()
     // add eax, eax     ; Double it
     // ret 4            ; Return and pop 4 bytes(the int) off the stack(stdcall cleanup)
     
-    
-    
     std::vector<std::uint8_t> code = { 0x8B, 0xC1, 0x03, 0xC0, 0xC3 };
     
     std::string op = memexec::code_to_string(code, " | ", memexec::format::hex).value();
