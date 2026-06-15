@@ -556,7 +556,8 @@ public:
         }
 
     public:
-        memstager() noexcept = default;
+
+        constexpr memstager() noexcept = default;
 
         memstager(const std::uint8_t* code, std::size_t size)
         {
@@ -583,7 +584,7 @@ public:
         memstager(const memstager&) = delete;
         memstager& operator=(const memstager&) = delete;
 
-        memstager(memstager&& other) noexcept : mem_(other.mem_), size_(other.size_)
+        constexpr memstager(memstager&& other) noexcept : mem_(other.mem_), size_(other.size_)
         {
             other.mem_ = nullptr;
             other.size_ = 0;
@@ -609,14 +610,14 @@ public:
             cleanup();
         }
 
-        std::size_t size() const noexcept
+        constexpr std::size_t size() const noexcept
         {
             return size_;
         }
 
-        virtual bool is_executable() const noexcept = 0;
+        constexpr virtual bool is_executable() const noexcept = 0;
 
-        explicit operator bool() const noexcept
+        explicit constexpr operator bool() const noexcept
         {
             return is_executable();
         }
@@ -628,7 +629,7 @@ public:
     {
     public:
 
-        mcxe() noexcept : memstager() {}
+        constexpr mcxe() noexcept : memstager() {}
 
         mcxe(const std::uint8_t* code, std::size_t size) : memstager(code, size) { }
 
@@ -637,7 +638,7 @@ public:
         mcxe(const mcxe&) = delete;
         mcxe& operator=(const mcxe&) = delete;
 
-        mcxe(mcxe&& other) noexcept : memstager(std::move(other)) {}
+        constexpr mcxe(mcxe&& other) noexcept : memstager(std::move(other)) {}
 
         mcxe& operator=(mcxe&& other) noexcept
         {
@@ -645,7 +646,7 @@ public:
             return *this;
         }
 
-        ~mcxe() override = default;
+        constexpr ~mcxe() = default;
 
 
         bool register_function(const std::uint8_t* code, std::size_t size) noexcept
@@ -679,18 +680,18 @@ public:
 
 
         template <typename ReturnType, typename... ParamTypes>
-        inline auto get() const noexcept -> ReturnType(*)(ParamTypes...)
+        constexpr auto get() const noexcept -> ReturnType(*)(ParamTypes...)
         {
             return reinterpret_cast<ReturnType(*)(ParamTypes...)>(mem_);
         }
 
         template <typename ReturnType, typename... Params>
-        inline ReturnType call(Params&&... args) const noexcept
+        constexpr ReturnType call(Params&&... args) const noexcept
         {
             return get<ReturnType, Params...>()(std::forward<Params>(args)...);
         }
 
-        bool is_executable() const noexcept override
+        constexpr bool is_executable() const noexcept override
         {
             return mem_ != nullptr;
         }
@@ -723,8 +724,8 @@ public:
 
         dispcallfunc_structure str_ { };
 
-
-        void cache_dispcallfunc_structure(const function_structure& str)
+        // Actually do some caching lol ?
+        constexpr void cache_dispcallfunc_structure(const function_structure& str) noexcept 
         {
             str_.call_conv = convert(str.call_conv);
             str_.return_type = convert(str.return_type);
@@ -744,7 +745,7 @@ public:
         }
 
 
-        constexpr CALLCONV convert(callconv call) noexcept
+        static constexpr CALLCONV convert(callconv call) noexcept
         {
             #ifdef _WIN64
 
@@ -754,21 +755,19 @@ public:
 
                 switch(call)
                 {
-                    case callconv::stdcall:  return CC_STDCALL;
                     case callconv::ccdecl:   return CC_CDECL;
                     case callconv::fastcall: return CC_FASTCALL;
 
-                    default:                 throw std::runtime_error("Unsupported \"memexec::callconv\"");
+                    default:                 return CC_STDCALL;
                 }
 
             #endif
         }
 
-        static VARTYPE convert(type t = type::empty)
+        static constexpr VARTYPE convert(type t = type::empty) noexcept
         {
             switch (t)
             {
-                case type::empty:    return VT_EMPTY;
                 case type::void_ptr: return VT_UINT_PTR;
                 case type::boolean:  return VT_BOOL;
                 case type::i8:       return VT_I1;
@@ -782,32 +781,26 @@ public:
                 case type::f32:      return VT_R4;
                 case type::f64:      return VT_R8;
 
-                default:             throw std::runtime_error("Unsupported \"memexec::type\"");
+                default:             return VT_EMPTY;
             }
         }
 
-        static bool convert(VARIANT_BOOL var_bool) noexcept
+        static constexpr bool convert(VARIANT_BOOL var_bool) noexcept
         {
             return var_bool != VARIANT_FALSE;
         }
 
-        static VARIANT_BOOL convert(bool b) noexcept
+        static constexpr VARIANT_BOOL convert(bool b) noexcept
         {
             return (b) ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
-        static VARIANT convert(value val)
+        static constexpr VARIANT convert(value val) noexcept
         {
-            VARIANT var;
-            VariantInit(&var);
+            VARIANT var { };
 
             switch (val.t)
             {
-                    case type::empty:
-                    {
-                        var.vt = VT_EMPTY;
-                    }
-                    break;
 
                 #ifdef _WIN64
 
@@ -908,21 +901,20 @@ public:
 
                 default:
                 {
-                    throw std::runtime_error("Unsupported \"memexec::type\"");
+                    var.vt = VT_EMPTY;
                 }
             }
 
             return var;
         }
 
-        static value convert(VARIANT var)
+        static constexpr value convert(VARIANT var) noexcept
         {
             VARTYPE base_type = var.vt & VT_TYPEMASK;
 
             switch (base_type)
             {
-                case VT_EMPTY:    return value();
-
+               
                 #ifdef _WIN64
 
                     case VT_UINT_PTR: return value(reinterpret_cast<void*>(var.ullVal));
@@ -947,7 +939,7 @@ public:
                 case VT_R4:       return value(static_cast<float>(var.fltVal));
                 case VT_R8:       return value(static_cast<double>(var.dblVal));
 
-                default:          throw std::runtime_error("Unsuported \"VARTYPE\"");
+                default:          return value();
             }
         } 
         
@@ -970,19 +962,11 @@ public:
 
     public: 
         
-        rfie() noexcept : memstager() {}
+        constexpr rfie() noexcept : memstager() {}
 
         rfie(const std::uint8_t* code, std::size_t size, const function_structure& str) : memstager(code, size) 
         { 
-            try
-            {
-                cache_dispcallfunc_structure(str);
-            }
-            catch (...)
-            {
-                cleanup();
-                throw;
-            }
+            cache_dispcallfunc_structure(str);
         }
 
         rfie(std::span<std::uint8_t> code, const function_structure& str) : rfie(code.data(), code.size(), str) {}
@@ -990,38 +974,38 @@ public:
         rfie(const rfie&) = delete;
         rfie& operator=(const rfie&) = delete;
 
-       rfie(rfie&& other) noexcept : memstager(std::move(other))
-       {
-           str_.call_conv = other.str_.call_conv;
-           str_.return_type = other.str_.return_type;
-           str_.arguments_types = std::move(other.str_.arguments_types);
-           str_.arguments_values = std::move(other.str_.arguments_values);
-           str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
-           
-           other.str_.call_conv = CC_STDCALL;
-           other.str_.return_type = VT_EMPTY;
-       }
+        constexpr rfie(rfie&& other) noexcept : memstager(std::move(other))
+        {
+            str_.call_conv = other.str_.call_conv;
+            str_.return_type = other.str_.return_type;
+            str_.arguments_types = std::move(other.str_.arguments_types);
+            str_.arguments_values = std::move(other.str_.arguments_values);
+            str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
+            
+            other.str_.call_conv = CC_STDCALL;
+            other.str_.return_type = VT_EMPTY;
+        }
        
-       rfie& operator=(rfie&& other) noexcept
-       {
-           if (this != &other)
-           {
-               memstager::operator=(std::move(other));
+        rfie& operator=(rfie&& other) noexcept
+        {
+            if (this != &other)
+            {
+                memstager::operator=(std::move(other));
 
-               str_.call_conv = other.str_.call_conv;
-               str_.return_type = other.str_.return_type;
-               str_.arguments_types = std::move(other.str_.arguments_types);
-               str_.arguments_values = std::move(other.str_.arguments_values);
-               str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
+                str_.call_conv = other.str_.call_conv;
+                str_.return_type = other.str_.return_type;
+                str_.arguments_types = std::move(other.str_.arguments_types);
+                str_.arguments_values = std::move(other.str_.arguments_values);
+                str_.arguments_value_ptrs = std::move(other.str_.arguments_value_ptrs);
 
-               other.str_.call_conv = CC_STDCALL;
-               other.str_.return_type = VT_EMPTY;
-           }
+                other.str_.call_conv = CC_STDCALL;
+                other.str_.return_type = VT_EMPTY;
+            }
 
-           return *this;
-       }
+            return *this;
+        }
 
-       ~rfie() override = default;
+        constexpr ~rfie() = default;
        
 
         bool register_function(const std::uint8_t* code, std::size_t size, const function_structure& str) noexcept
@@ -1045,15 +1029,7 @@ public:
                 return false;
             }
 
-            try
-            {
-                cache_dispcallfunc_structure(str);
-            }
-            catch(...)
-            {
-                cleanup();
-                return false;
-            }
+            cache_dispcallfunc_structure(str);
 
             return true;
         }
@@ -1064,7 +1040,7 @@ public:
         }
 
 
-        value call()
+        inline std::optional<value> call() noexcept
         { 
             VARIANT result;
             VariantInit(&result);
@@ -1078,13 +1054,13 @@ public:
                                    str_.arguments_value_ptrs.data(),
                                    &result)))
             {  
-                throw std::runtime_error("DispCallFunc failed.");
+                return std::nullopt;
             }
         
             return convert(result);
         } 
         
-        bool is_executable() const noexcept override
+        constexpr bool is_executable() const noexcept override
         {
             return mem_
                 && !str_.arguments_types.empty()

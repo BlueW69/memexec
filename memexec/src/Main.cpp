@@ -37,7 +37,7 @@ int main()
         
         if (return_num)
         {
-            memexec::value val = return_num.call();
+            memexec::value val = return_num.call().value();
 
             std::cout << val.i32 << std::endl;
         }
