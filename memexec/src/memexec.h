@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
 #endif
 
 #include <windows.h>
@@ -20,7 +20,12 @@
 #include <optional>
 #include <utility>
 
-#pragma comment(lib, "oleaut32.lib")
+// autolink for msvc & clang-cl
+#ifndef MEMEXEC_NO_AUTOLINK
+    #ifdef _MSC_VER
+        #pragma comment(lib, "oleaut32.lib")
+    #endif
+#endif
 
 class memexec
 {
@@ -233,7 +238,7 @@ public:
         }
 
         std::vector<std::uint8_t> code { };
-        code.reserve(str.size() / 2);
+        code.reserve(str.size() / 1 + delimeter.size());
 
         while (!str.empty())
         {
@@ -610,6 +615,7 @@ public:
             cleanup();
         }
 
+
         constexpr std::size_t size() const noexcept
         {
             return size_;
@@ -629,16 +635,16 @@ public:
     {
     public:
 
-        constexpr mcxe() noexcept : memstager() {}
+        constexpr mcxe() noexcept : memstager() { }
 
         mcxe(const std::uint8_t* code, std::size_t size) : memstager(code, size) { }
 
-        mcxe(std::span<std::uint8_t> code) : memstager(code) {}
+        mcxe(std::span<std::uint8_t> code) : memstager(code) { }
 
         mcxe(const mcxe&) = delete;
         mcxe& operator=(const mcxe&) = delete;
 
-        constexpr mcxe(mcxe&& other) noexcept : memstager(std::move(other)) {}
+        constexpr mcxe(mcxe&& other) noexcept : memstager(std::move(other)) { }
 
         mcxe& operator=(mcxe&& other) noexcept
         {
@@ -680,16 +686,29 @@ public:
 
 
         template <typename ReturnType, typename... ParamTypes>
-        constexpr auto get() const noexcept -> ReturnType(*)(ParamTypes...)
+        constexpr auto get() const noexcept -> std::optional<ReturnType(*)(ParamTypes...)>
         {
+            if (!mem_ || size_ == 0)
+            {
+                return std::nullopt;
+            }
+
             return reinterpret_cast<ReturnType(*)(ParamTypes...)>(mem_);
         }
 
-        template <typename ReturnType, typename... Params>
-        constexpr ReturnType call(Params&&... args) const noexcept
+        template <typename ReturnType, typename... ParamTypes>
+        constexpr std::optional<ReturnType> call(ParamTypes&&... args) const noexcept
         {
-            return get<ReturnType, Params...>()(std::forward<Params>(args)...);
+            auto result = get<ReturnType, ParamTypes...>();
+
+            if (!result)
+            {
+                return std::nullopt;
+            }
+
+            return result.value()(std::forward<ParamTypes>(args)...);
         }
+
 
         constexpr bool is_executable() const noexcept override
         {
@@ -724,7 +743,7 @@ public:
 
         dispcallfunc_structure str_ { };
 
-        // Actually do some caching lol ?
+
         constexpr void cache_dispcallfunc_structure(const function_structure& str) noexcept 
         {
             str_.call_conv = convert(str.call_conv);
@@ -733,7 +752,7 @@ public:
             str_.arguments_types.reserve(str.arguments_types.size());
             str_.arguments_values.reserve(str.arguments_values.size());
             str_.arguments_value_ptrs.reserve(str.arguments_values.size());
-
+ 
             for (std::size_t i = 0, end = str.arguments_values.size(); i < end; i++)
             {
                 std::size_t  reversed_index = end - 1 - i;
@@ -792,7 +811,7 @@ public:
 
         static constexpr VARIANT_BOOL convert(bool b) noexcept
         {
-            return (b) ? VARIANT_TRUE : VARIANT_FALSE;
+            return b ? VARIANT_TRUE : VARIANT_FALSE;
         }
 
         static constexpr VARIANT convert(value val) noexcept
@@ -962,14 +981,20 @@ public:
 
     public: 
         
-        constexpr rfie() noexcept : memstager() {}
+        constexpr rfie() noexcept : memstager() { }
 
         rfie(const std::uint8_t* code, std::size_t size, const function_structure& str) : memstager(code, size) 
         { 
+            if (str.arguments_types.size() != str.arguments_values.size())
+            {
+                memstager::cleanup();
+                throw std::length_error("Sizes of arguments_types and arguments_values do not match.");
+            }
+
             cache_dispcallfunc_structure(str);
         }
 
-        rfie(std::span<std::uint8_t> code, const function_structure& str) : rfie(code.data(), code.size(), str) {}
+        rfie(std::span<std::uint8_t> code, const function_structure& str) : rfie(code.data(), code.size(), str) { }
 
         rfie(const rfie&) = delete;
         rfie& operator=(const rfie&) = delete;
@@ -1029,6 +1054,12 @@ public:
                 return false;
             }
 
+            if (str.arguments_types.size() != str.arguments_values.size())
+            {
+                memstager::cleanup();
+                return false;
+            }
+
             cache_dispcallfunc_structure(str);
 
             return true;
@@ -1040,8 +1071,13 @@ public:
         }
 
 
-        inline std::optional<value> call() noexcept
+        std::optional<value> call() noexcept
         { 
+            if (!mem_ || size_ == 0)
+            {
+                return std::nullopt;
+            }
+
             VARIANT result;
             VariantInit(&result);
 
@@ -1060,6 +1096,7 @@ public:
             return convert(result);
         } 
         
+
         constexpr bool is_executable() const noexcept override
         {
             return mem_
