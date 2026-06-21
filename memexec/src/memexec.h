@@ -230,84 +230,6 @@ private:
 
 public:
 
-    static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimeter, format f = format::decimal) noexcept
-    {
-        if (str.empty())
-        {
-            return std::nullopt;
-        }
-
-        std::vector<std::uint8_t> code { };
-        code.reserve(str.size() / 1 + delimeter.size());
-
-        while (!str.empty())
-        {
-            std::size_t delim_pos = str.find(delimeter);
-
-            std::string_view token = str.substr(0, delim_pos);
-
-            if (!token.empty())
-            {
-                auto result = remove_prefix(&token, delimeter, f);
-
-                if (!result)
-                {
-                    return std::nullopt;
-                }
-
-                auto& [char_format, base] = result.value();
-
-                std::optional<std::uint8_t> converted_code = parse<std::uint8_t>(token, base);
-
-                if (!converted_code)
-                {
-                    return std::nullopt;
-                }
-
-                code.push_back(converted_code.value());
-            }
-
-            if (delim_pos == std::string_view::npos)
-            {
-                break;
-            }
-
-            str.remove_prefix(delim_pos + delimeter.size());
-        }
-
-        return code;   
-    }
-    
-    static std::optional<std::string> code_to_string(const std::span<std::uint8_t>& code, std::string_view delimeter, format f = format::decimal) noexcept
-    {
-        if (code.empty())
-        {
-            return std::nullopt;
-        }
-
-        try
-        {
-            std::string result { };
-
-            for (std::size_t i = 0; i < code.size(); i++)
-            {
-                result.append(parse(code[i], f));
-
-                if (i < code.size() - 1)
-                {
-                    result.append(delimeter);
-                }
-            }
-
-            return result;
-        }
-        catch (...)
-        {
-            return std::nullopt;
-        }
-    }
-
-
     enum class format : std::uint8_t
     {
         decimal = 0,
@@ -327,7 +249,7 @@ public:
         return std::nullopt;
     }
 
-    static constexpr std::optional<std::string_view> callconv_to_string(format f) noexcept
+    static constexpr std::optional<std::string_view> format_to_string(format f) noexcept
     {
         std::size_t index = static_cast<std::size_t>(f);
 
@@ -540,6 +462,84 @@ public:
             return std::nullopt;
         }
     }
+
+
+   static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimeter, format f = format::decimal) noexcept
+   {
+       if (str.empty())
+       {
+           return std::nullopt;
+       }
+
+       std::vector<std::uint8_t> code{ };
+       code.reserve(str.size() / 1 + delimeter.size());
+
+       while (!str.empty())
+       {
+           std::size_t delim_pos = str.find(delimeter);
+
+           std::string_view token = str.substr(0, delim_pos);
+
+           if (!token.empty())
+           {
+               auto result = remove_prefix(&token, delimeter, f);
+
+               if (!result)
+               {
+                   return std::nullopt;
+               }
+
+               auto& [char_format, base] = result.value();
+
+               std::optional<std::uint8_t> converted_code = parse<std::uint8_t>(token, base);
+
+               if (!converted_code)
+               {
+                   return std::nullopt;
+               }
+
+               code.push_back(converted_code.value());
+           }
+
+           if (delim_pos == std::string_view::npos)
+           {
+               break;
+           }
+
+           str.remove_prefix(delim_pos + delimeter.size());
+       }
+
+       return code;
+   }
+
+   static std::optional<std::string> code_to_string(const std::span<std::uint8_t>& code, std::string_view delimeter, format f = format::decimal) noexcept
+   {
+       if (code.empty())
+       {
+           return std::nullopt;
+       }
+
+       try
+       {
+           std::string result{ };
+
+           for (std::size_t i = 0; i < code.size(); i++)
+           {
+               result.append(parse(code[i], f));
+
+               if (i < code.size() - 1)
+               {
+                   result.append(delimeter);
+               }
+           }
+
+           return result;
+       }
+       catch (...)
+       {
+           return std::nullopt;
+       }
+   }
 
 
     /* Memory Stager */
