@@ -464,7 +464,7 @@ public:
     }
 
 
-   static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimeter, format f = format::decimal) noexcept
+   static std::optional<std::vector<std::uint8_t>> string_to_code(std::string_view str, std::string_view delimiter, format f = format::decimal) noexcept
    {
        if (str.empty())
        {
@@ -472,17 +472,17 @@ public:
        }
 
        std::vector<std::uint8_t> code{ };
-       code.reserve(str.size() / 1 + delimeter.size());
+       code.reserve(str.size() / 1 + delimiter.size());
 
        while (!str.empty())
        {
-           std::size_t delim_pos = str.find(delimeter);
+           std::size_t delim_pos = str.find(delimiter);
 
            std::string_view token = str.substr(0, delim_pos);
 
            if (!token.empty())
            {
-               auto result = remove_prefix(&token, delimeter, f);
+               auto result = remove_prefix(&token, delimiter, f);
 
                if (!result)
                {
@@ -506,13 +506,13 @@ public:
                break;
            }
 
-           str.remove_prefix(delim_pos + delimeter.size());
+           str.remove_prefix(delim_pos + delimiter.size());
        }
 
        return code;
    }
 
-   static std::optional<std::string> code_to_string(const std::span<std::uint8_t>& code, std::string_view delimeter, format f = format::decimal) noexcept
+   static std::optional<std::string> code_to_string(const std::span<std::uint8_t>& code, std::string_view delimiter, format f = format::decimal) noexcept
    {
        if (code.empty())
        {
@@ -529,7 +529,7 @@ public:
 
                if (i < code.size() - 1)
                {
-                   result.append(delimeter);
+                   result.append(delimiter);
                }
            }
 
