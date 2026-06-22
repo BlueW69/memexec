@@ -648,12 +648,6 @@ public:
         }
 
         constexpr virtual bool is_executable() const noexcept = 0;
-
-        explicit constexpr operator bool() const noexcept
-        {
-            return is_executable();
-        }
-
     };
 
     /* Machine Code Execution Engine */
@@ -739,6 +733,11 @@ public:
         constexpr bool is_executable() const noexcept override
         {
             return mem_ != nullptr;
+        }
+
+        explicit constexpr operator bool() const noexcept
+        {
+            return is_executable();
         }
     };
 
@@ -1129,6 +1128,11 @@ public:
                 && !str_.arguments_types.empty()
                 && !str_.arguments_values.empty()
                 && !str_.arguments_value_ptrs.empty();
+        }
+
+        explicit constexpr operator bool() const noexcept
+        {
+            return is_executable();
         }
     };
 };
