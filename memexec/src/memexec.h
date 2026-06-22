@@ -400,6 +400,32 @@ public:
         constexpr value(value&&) noexcept = default;
         constexpr value& operator=(value&&) noexcept = default;
 
+        constexpr bool operator==(const value& other) const noexcept
+        {
+            if (t != other.t)
+            {
+                return false;
+            }
+
+            switch (t)
+            {
+                case type::void_ptr: return void_ptr == other.void_ptr;
+                case type::boolean:  return boolean == other.boolean;
+                case type::i8:       return i8 == other.i8;
+                case type::i16:      return i16 == other.i16;
+                case type::i32:      return i32 == other.i32;
+                case type::i64:      return i64 == other.i64;
+                case type::u8:       return u8 == other.u8;
+                case type::u16:      return u16 == other.u16;
+                case type::u32:      return u32 == other.u32;
+                case type::u64:      return u64 == other.u64;
+                case type::f32:      return f32 == other.f32;
+                case type::f64:      return f64 == other.f64;
+
+                default:             return true; // void
+            }
+        }
+
         constexpr ~value() = default;
     };
 
