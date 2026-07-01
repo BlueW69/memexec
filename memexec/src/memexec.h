@@ -37,7 +37,7 @@ private:
 
     static constexpr inline std::array<std::string_view, 2> format_table_ = {"decimal", "hex"};
     static constexpr inline std::array<std::string_view, 13> type_table_ = {"void", "void_ptr", "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64"};
-    static constexpr inline std::array<std::string_view, 3> callconv_table_ = {"stdcall", "ccdecl", "fastcall"};
+    static constexpr inline std::array<std::string_view, 3> callconv_table_ = {"cc_stdcall", "cc_cdecl", "cc_fastcall"};
 
     template <typename T>
     requires std::integral<T>
@@ -261,12 +261,11 @@ public:
         return std::nullopt;
     }
 
-
     enum class callconv : std::uint8_t
     {
-        stdcall = 0,
-        ccdecl,
-        fastcall
+        cc_stdcall = 0,
+        cc_cdecl,
+        cc_fastcall
     };
 
     static constexpr std::optional<callconv> string_to_callconv(std::string_view str) noexcept
@@ -749,7 +748,7 @@ public:
 
         struct function_structure
         {
-            callconv call_conv = callconv::stdcall;
+            callconv call_conv = callconv::cc_stdcall;
             type return_type = type::empty;
             std::vector<type> arguments_types { };
             std::vector<value> arguments_values { };
@@ -799,10 +798,10 @@ public:
 
                 switch(call)
                 {
-                    case callconv::ccdecl:   return CC_CDECL;
-                    case callconv::fastcall: return CC_FASTCALL;
+                    case callconv::cc_cdecl:    return CC_CDECL;
+                    case callconv::cc_fastcall: return CC_FASTCALL;
 
-                    default:                 return CC_STDCALL;
+                    default:                    return CC_STDCALL;
                 }
 
             #endif
