@@ -20,7 +20,7 @@
 #include <optional>
 #include <utility>
 
-// autolink for msvc & clang-cl
+// allows autolink (msvc & clang-cl)
 #ifndef MEMEXEC_NO_AUTOLINK
     #ifdef _MSC_VER
         #pragma comment(lib, "oleaut32.lib")
@@ -653,6 +653,33 @@ public:
     /* Machine Code Execution Engine */
     class mcxe : public memstager
     {
+    private:
+        
+        #ifndef _WIN64
+
+            template <callconv Convention, typename ReturnType, typename... ParamTypes>
+            struct function_pointer;
+ 
+            template <typename ReturnType, typename... ParamTypes>
+            struct function_pointer<callconv::cc_stdcall, ReturnType, ParamTypes...>
+            {
+                using ptr_type = ReturnType(__stdcall*)(ParamTypes...);
+            };
+        
+            template <typename ReturnType, typename... ParamTypes>
+            struct function_pointer<callconv::cc_cdecl, ReturnType, ParamTypes...>
+            {
+                using ptr_type = ReturnType(__cdecl*)(ParamTypes...);
+            };
+
+            template <typename ReturnType, typename... ParamTypes>
+            struct function_pointer<callconv::cc_fastcall, ReturnType, ParamTypes...>
+            {
+                using ptr_type = ReturnType(__fastcall*)(ParamTypes...);
+            };
+
+        #endif
+
     public:
 
         constexpr mcxe() noexcept : memstager() { }
@@ -704,31 +731,59 @@ public:
             return register_function(code.data(), code.size());
         }
 
+        #ifdef _WIN64
 
-        template <typename ReturnType, typename... ParamTypes>
-        constexpr auto get() const noexcept -> std::optional<ReturnType(*)(ParamTypes...)>
-        {
-            if (!mem_ || size_ == 0)
+            template <typename ReturnType, typename... ParamTypes>
+            constexpr auto get() const noexcept -> std::optional<ReturnType(*)(ParamTypes...)>
             {
-                return std::nullopt;
+                if (!mem_ || size_ == 0)
+                {
+                    return std::nullopt;
+                }
+
+                return reinterpret_cast<ReturnType(*)(ParamTypes...)>(mem_);
             }
 
-            return reinterpret_cast<ReturnType(*)(ParamTypes...)>(mem_);
-        }
-
-        template <typename ReturnType, typename... ParamTypes>
-        constexpr std::optional<ReturnType> call(ParamTypes&&... args) const noexcept
-        {
-            auto result = get<ReturnType, ParamTypes...>();
-
-            if (!result)
+            template <typename ReturnType, typename... ParamTypes>
+            constexpr std::optional<ReturnType> call(ParamTypes&&... args) const noexcept
             {
-                return std::nullopt;
+                auto result = get<ReturnType, ParamTypes...>();
+
+                if (!result)
+                {
+                    return std::nullopt;
+                }
+
+                return result.value()(std::forward<ParamTypes>(args)...);
             }
 
-            return result.value()(std::forward<ParamTypes>(args)...);
-        }
+        #else
 
+            template <callconv Convention, typename ReturnType, typename... ParamTypes>
+            constexpr auto get() const noexcept -> std::optional<typename function_pointer<Convention, ReturnType, ParamTypes...>::ptr_type>
+            {
+                if (!mem_ || size_ == 0)
+                {
+                    return std::nullopt;
+                }
+
+                return reinterpret_cast<typename function_pointer<Convention, ReturnType, ParamTypes...>::ptr_type>(mem_);
+            }
+
+            template <callconv Convention, typename ReturnType, typename... ParamTypes>
+            constexpr std::optional<ReturnType> call(ParamTypes&&... args) const noexcept
+            {
+                auto result = get<Convention, ReturnType, ParamTypes...>();
+
+                if (!result)
+                {
+                    return std::nullopt;
+                }
+
+                return result.value()(std::forward<ParamTypes>(args)...);
+            }
+
+        #endif
 
         constexpr bool is_executable() const noexcept override
         {
