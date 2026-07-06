@@ -5,6 +5,9 @@
 </p>
 <hr/>
 <div align="center">
+  <img src="https://img.shields.io/badge/C++26-24292F?logo=cplusplus&logoColor=red"/>
+  <img src="https://img.shields.io/badge/Win32-24292F?"/>
+</div>
 </br>
 <h2 align="center">Overview</h2>
 <ul>
