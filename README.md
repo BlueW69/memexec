@@ -50,19 +50,19 @@
 ```cpp
     #include "memexec.h"
 ```  
-
-That's the whole install, no build step and nothing beyond the Windows SDK to link against. The header auto-links <code>oleaut32.lib</code> on MSVC/clang-cl. If you dont like this behavior or you are using diffrent compiler simply define <code>MEMEXEC_NO_AUTOLINK</code> macro before the include. 
+<p>
+  That's the whole install, no build step and nothing beyond the Windows SDK to link against. The header auto-links <code>oleaut32.lib</code> on MSVC/clang-cl. If you   dont like this behavior or you are using diffrent compiler simply define <code>MEMEXEC_NO_AUTOLINK</code> macro before the include. 
+</p>
 
 ```cpp
     #define MEMEXEC_NO_AUTOLINK
     #include "memexec.h"
 ```
-
-Note that the compiler needs to have at least C++23 support.
+<p>
+  Note that the compiler needs to have at least C++23 support.
 </p>
 
 <h2 align="center">Usage</h2>
-
 <h3>mcxe</h3>
 
 ```cpp
