@@ -65,7 +65,7 @@
 
 <h2 align="center">Usage</h2>
 <h3>MCXE</h3>
-<p>For this example, I'll call this square function extracted from a .cfg file that was compiled for a 32-bit architecture using the __stdcall calling convention.</p>
+<p>For this example, I'll call this square function extracted from a .cfg file that was compiled for a 32-bit architecture using the <code>__stdcall</code> calling convention.</p>
 
 ```cpp
 
