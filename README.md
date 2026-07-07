@@ -16,7 +16,8 @@
     you back a real function pointer instead.
   </li>
   <li>
-    On top of that, memexec provides a set of string conversion helpers for going between format/callconv/type/value/machine code and plain text.
+    On top of that, memexec provides a set of string conversion helpers for going back and forth between
+    <code>format</code>/<code>callconv</code>/<code>type</code>/<code>value</code>/<code>machine code</code> and <code>std::string</code>.
     Useful if any of that information comes from outside your C++ source (a config file, a CLI flag, a UI) rather than being known at compile time.
   </li>
 </ul>
