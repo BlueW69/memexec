@@ -65,7 +65,7 @@
 
 <h2 align="center">Usage</h2>
 <h3>MCXE</h3>
-<p>For this example, I'll call this square function extracted from a .cfg file that was compiled for a 32-bit architecture using the <code>__stdcall</code> calling convention.</p>
+<p>For this example, I'll invoke a simple <code>square</code> function extracted from a <code>.cfg</code> file compiled for a 32-bit architecture using the <code>__stdcall</code> calling convention. The function's signature must be known at compile time so the correct function pointer can be generated.</p>
 
 ```cpp
 
@@ -105,10 +105,64 @@ if (engine.register_function(code.value()))
 ```  
 
 <h3>RFIE</h3>
+<p>For this example, I'll invoke a simple <code>square</code> function extracted from a <code>.cfg</code> file that was compiled for a 64-bit architecture using the Windows unified calling convention. Unlike the previous example, the function's structure does not need to be known at compile time, allowing arbitrary functions to be loaded and invoked dynamically at runtime.</p>
 
 ```cpp
-    #include "memexec.h"
-    ...
+
+// 89 C8        mov eax, ecx
+// 0F AF C0     imul eax, eax
+// C3           ret
+
+std::string_view cfg_format = "hex";
+std::string_view cfg_code = "0x89 | 0xC8 | 0x0F | 0xAF | 0xC0 | 0xC3";
+std::string_view cfg_return_type = "i32";
+std::string_view cfg_param_type = "i32";
+std::string_view cfg_param_value = "2";
+
+auto format = memexec::string_to_format(cfg_format);
+
+if (!format)
+{
+    return 0;
+}
+
+auto code = memexec::string_to_code(cfg_code, " | ", format.value());
+auto return_type = memexec::string_to_type(cfg_return_type);
+auto param_type = memexec::string_to_type(cfg_param_type);
+
+if (!param_type)
+{
+    return 0;
+}
+
+auto param_value = memexec::string_to_value(cfg_param_value, param_type.value(), format.value());
+
+if (!code || !return_type || !param_value)
+{
+    return 0;
+}
+
+memexec::rfie::function_structure str;
+str.return_type = return_type.value();
+str.arguments_types.push_back(param_type.value());
+str.arguments_values.push_back(param_value.value());
+
+try
+{
+    memexec::rfie engine(code.value(), str); // If you dont like exceptions use 
+                                             // register_function(...) instead.
+    auto result = engine.call();
+
+    if (result)
+    {
+        std::cout << result.value(); // -> 4
+    }
+}
+catch (const std::exception& e)
+{
+    std::cout << e.what();
+}
+
 ```  
 
 <h2 align="center">Safety</h2>
