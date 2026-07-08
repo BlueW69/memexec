@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <optional>
 #include <utility>
+#include <ostream>
+#include <istream>
 
 // allows autolink (msvc & clang-cl)
 #ifndef MEMEXEC_NO_AUTOLINK
@@ -1191,3 +1193,57 @@ public:
         }
     };
 };
+
+std::ostream& operator<<(std::ostream& os, const memexec::value& val) noexcept
+{
+    switch (val.t)
+    {
+        case memexec::type::void_ptr: return os << val.void_ptr;
+        case memexec::type::boolean:  return os << val.boolean;
+        case memexec::type::i8:       return os << static_cast<int>(val.i8);
+        case memexec::type::i16:      return os << val.i16;
+        case memexec::type::i32:      return os << val.i32;
+        case memexec::type::i64:      return os << val.i64;
+        case memexec::type::u8:       return os << static_cast<unsigned int>(val.u8);
+        case memexec::type::u16:      return os << val.u16;
+        case memexec::type::u32:      return os << val.u32;
+        case memexec::type::u64:      return os << val.u64;
+        case memexec::type::f32:      return os << val.f32;
+        case memexec::type::f64:      return os << val.f64;
+
+        default:                      return os << "";
+    }
+}
+
+std::istream& operator>>(std::istream& is, memexec::value& val)
+{
+    switch (val.t)
+    {
+        case memexec::type::void_ptr: return is >> val.void_ptr;
+        case memexec::type::boolean:  return is >> val.boolean; 
+        case memexec::type::i8:
+        {
+            int temp;
+            is >> temp;
+            val.i8 = static_cast<std::int8_t>(temp);
+            return is;
+        }
+        case memexec::type::i16:      return is >> val.i16;
+        case memexec::type::i32:      return is >> val.i32;
+        case memexec::type::i64:      return is >> val.i64;
+        case memexec::type::u8:
+        {
+            unsigned int temp;
+            is >> temp;
+            val.u8 = static_cast<std::uint8_t>(temp);
+            return is;
+        }
+        case memexec::type::u16:      return is >> val.u16;
+        case memexec::type::u32:      return is >> val.u32;
+        case memexec::type::u64:      return is >> val.u64;
+        case memexec::type::f32:      return is >> val.f32;
+        case memexec::type::f64:      return is >> val.f64;
+        
+        default:                      return is;
+    }
+}
